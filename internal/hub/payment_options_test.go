@@ -56,12 +56,16 @@ func TestPostgresFlexibleOfferAndPaymentSettings(t *testing.T) {
 		if offer.Code != 200 {
 			t.Fatal(offer.Code, offer.Body.String())
 		}
-		var result map[string]string
-		json.Unmarshal(offer.Body.Bytes(), &result)
+		var result struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(offer.Body.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
 		var amount int64
 		var unit string
 		var count int
-		e := s.DB.QueryRow(context.Background(), "SELECT p.amount,p.interval_unit,p.interval_count FROM offers o JOIN plans p ON p.tenant_id=o.tenant_id AND p.id=o.plan_id WHERE o.tenant_id=$1 AND o.id=$2", tenant, result["id"]).Scan(&amount, &unit, &count)
+		e := s.DB.QueryRow(context.Background(), "SELECT p.amount,p.interval_unit,p.interval_count FROM offers o JOIN plans p ON p.tenant_id=o.tenant_id AND p.id=o.plan_id WHERE o.tenant_id=$1 AND o.id=$2", tenant, result.ID).Scan(&amount, &unit, &count)
 		if e != nil || amount != 8990 || unit != period.unit || count != period.count {
 			t.Fatal("incorrect recurring price/period", amount, unit, count, e)
 		}
@@ -71,10 +75,14 @@ func TestPostgresFlexibleOfferAndPaymentSettings(t *testing.T) {
 		t.Fatal(out.Code, out.Body.String())
 	}
 	offers := request(t, h, "POST", "/v1/offers", key, "once", `{"name":"Avulso","description":"","amount":3000,"currency":"brl","credits":10}`)
-	var offer map[string]string
-	json.Unmarshal(offers.Body.Bytes(), &offer)
+	var offer struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(offers.Body.Bytes(), &offer); err != nil {
+		t.Fatal(err)
+	}
 	for _, method := range []string{"pix", "boleto", "card"} {
-		session := request(t, h, "POST", "/v1/checkout-sessions", key, "session-"+method, fmt.Sprintf(`{"offer_id":%q,"customer_id":%q,"reference":%q}`, offer["id"], customer, method))
+		session := request(t, h, "POST", "/v1/checkout-sessions", key, "session-"+method, fmt.Sprintf(`{"offer_id":%q,"customer_id":%q,"reference":%q}`, offer.ID, customer, method))
 		var link map[string]any
 		json.Unmarshal(session.Body.Bytes(), &link)
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -163,14 +171,18 @@ func TestPostgresChargeHistoryAndArchivedOffer(t *testing.T) {
 	_, other, _ := newTenant(t, s)
 	h := (&API{Store: s, Accounts: Accounts{tenant: {"pagarme": {Secret: "sk_test", PublicKey: "pk_test", Environment: "test"}}}}).Handler()
 	offer := request(t, h, "POST", "/v1/offers", key, "offer", `{"name":"Avulso","description":"","amount":1000,"currency":"brl","credits":2}`)
-	var v map[string]string
-	json.Unmarshal(offer.Body.Bytes(), &v)
-	sessionBody := fmt.Sprintf(`{"offer_id":%q,"customer_id":%q,"reference":"original"}`, v["id"], customer)
+	var v struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(offer.Body.Bytes(), &v); err != nil {
+		t.Fatal(err)
+	}
+	sessionBody := fmt.Sprintf(`{"offer_id":%q,"customer_id":%q,"reference":"original"}`, v.ID, customer)
 	session := request(t, h, "POST", "/v1/checkout-sessions", key, "session", sessionBody)
 	if session.Code != 200 {
 		t.Fatal(session.Code)
 	}
-	if out := request(t, h, "POST", "/v1/offers/"+v["id"]+"/archive", key, "archive", "{}"); out.Code != 200 {
+	if out := request(t, h, "POST", "/v1/offers/"+v.ID+"/archive", key, "archive", "{}"); out.Code != 200 {
 		t.Fatal(out.Code)
 	}
 	if out := request(t, h, "POST", "/v1/checkout-sessions", key, "another", strings.Replace(sessionBody, "original", "another", 1)); out.Code != 404 {
@@ -346,11 +358,15 @@ func TestPostgresDocumentedCardTransitions(t *testing.T) {
 			if out.Code != 200 {
 				t.Fatal(out.Code)
 			}
-			var created map[string]string
-			json.Unmarshal(out.Body.Bytes(), &created)
+			var created struct {
+				ID string `json:"id"`
+			}
+			if err := json.Unmarshal(out.Body.Bytes(), &created); err != nil {
+				t.Fatal(err)
+			}
 			for i := range tc.orders {
 				phase = i
-				s.DB.Exec(context.Background(), "UPDATE charges SET next_at=now() WHERE tenant_id=$1 AND id=$2", tenant, created["id"])
+				s.DB.Exec(context.Background(), "UPDATE charges SET next_at=now() WHERE tenant_id=$1 AND id=$2", tenant, created.ID)
 				c, e := worker.claim(context.Background())
 				if e != nil {
 					t.Fatal(i, e)

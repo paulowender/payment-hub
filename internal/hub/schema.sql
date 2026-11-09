@@ -3,10 +3,12 @@ CREATE TABLE IF NOT EXISTS tenants (
  id text PRIMARY KEY, name text NOT NULL, api_hash text NOT NULL UNIQUE, created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS customers (
+ metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
  tenant_id text NOT NULL REFERENCES tenants(id), id text NOT NULL, external_id text NOT NULL,
  created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(tenant_id,id), UNIQUE(tenant_id,external_id)
 );
 CREATE TABLE IF NOT EXISTS plans (
+ metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
  tenant_id text NOT NULL REFERENCES tenants(id), id text NOT NULL, name text NOT NULL,
  amount bigint NOT NULL CHECK(amount>0 AND amount<=99999999), currency text NOT NULL CHECK(currency IN ('brl','usd')),
  credits bigint NOT NULL CHECK(credits>=0 AND credits<=1000000000), interval_unit text NOT NULL CHECK(interval_unit IN ('day','month')),
@@ -14,6 +16,7 @@ CREATE TABLE IF NOT EXISTS plans (
  created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(tenant_id,id)
 );
 CREATE TABLE IF NOT EXISTS subscriptions (
+ metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
  tenant_id text NOT NULL, id text NOT NULL, customer_id text NOT NULL, plan_id text NOT NULL,
  provider text NOT NULL CHECK(provider IN ('stripe','pagarme')), provider_customer text NOT NULL, payment_method text NOT NULL, account_fingerprint text NOT NULL DEFAULT '',
  status text NOT NULL DEFAULT 'active' CHECK(status IN ('active','canceled','past_due')),
@@ -22,6 +25,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
  FOREIGN KEY(tenant_id,customer_id) REFERENCES customers(tenant_id,id), FOREIGN KEY(tenant_id,plan_id) REFERENCES plans(tenant_id,id)
 );
 CREATE TABLE IF NOT EXISTS charges (
+ metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
  tenant_id text NOT NULL, id text NOT NULL, customer_id text NOT NULL,
  provider text NOT NULL CHECK(provider IN ('stripe','pagarme')), provider_customer text NOT NULL, payment_method text NOT NULL, account_fingerprint text NOT NULL DEFAULT '',
  amount bigint NOT NULL CHECK(amount>0 AND amount<=99999999), currency text NOT NULL CHECK(currency IN ('brl','usd')),

@@ -37,6 +37,9 @@ var portalSchema string
 //go:embed migrations/009_lifecycle.sql
 var lifecycleSchema string
 
+//go:embed migrations/010_metadata.sql
+var metadataSchema string
+
 type Store struct{ DB *pgxpool.Pool }
 
 func Open(ctx context.Context, url string) (*Store, error) {
@@ -106,7 +109,7 @@ func (s *Store) Migrate(ctx context.Context) error {
 	for _, m := range []struct {
 		version int
 		sql     string
-	}{{7, notificationSchema}, {8, portalSchema}, {9, lifecycleSchema}} {
+	}{{7, notificationSchema}, {8, portalSchema}, {9, lifecycleSchema}, {10, metadataSchema}} {
 		if err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM schema_version WHERE version=$1)", m.version).Scan(&migrated); err != nil {
 			return err
 		}

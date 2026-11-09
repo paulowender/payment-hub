@@ -83,17 +83,22 @@ func (a *API) checkoutMutate(r *http.Request, tx pgx.Tx, tenant, path string) (a
 		return b, e
 	case "v1/offers":
 		var in struct {
-			Name        string `json:"name"`
-			Description string `json:"description"`
-			Amount      int64  `json:"amount"`
-			Currency    string `json:"currency"`
-			Credits     int64  `json:"credits"`
-			Plan        string `json:"plan_id"`
-			Unit        string `json:"interval_unit"`
-			Count       int    `json:"interval_count"`
+			Metadata    json.RawMessage `json:"metadata"`
+			Name        string          `json:"name"`
+			Description string          `json:"description"`
+			Amount      int64           `json:"amount"`
+			Currency    string          `json:"currency"`
+			Credits     int64           `json:"credits"`
+			Plan        string          `json:"plan_id"`
+			Unit        string          `json:"interval_unit"`
+			Count       int             `json:"interval_count"`
 		}
 		if decode(r, &in) != nil || len(strings.TrimSpace(in.Name)) < 1 || len(in.Name) > 200 || len(in.Description) > 1000 {
 			return nil, errInvalid
+		}
+		metadata, err := decodeMetadata(in.Metadata)
+		if err != nil {
+			return nil, err
 		}
 		if in.Plan == "" && in.Unit != "" {
 			if !validInterval(in.Unit, in.Count) || !validAmount(in.Amount) || !validCredits(in.Credits) || in.Currency != "brl" {
@@ -113,16 +118,21 @@ func (a *API) checkoutMutate(r *http.Request, tx pgx.Tx, tenant, path string) (a
 			return nil, errInvalid
 		}
 		id := token()
-		_, e := tx.Exec(ctx, `INSERT INTO offers(tenant_id,id,name,description,amount,currency,credits,plan_id) VALUES($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''))`, tenant, id, in.Name, in.Description, in.Amount, in.Currency, in.Credits, in.Plan)
-		return map[string]string{"id": id}, e
+		_, e := tx.Exec(ctx, `INSERT INTO offers(tenant_id,id,name,description,amount,currency,credits,plan_id,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),COALESCE($9::jsonb,'{}'::jsonb))`, tenant, id, in.Name, in.Description, in.Amount, in.Currency, in.Credits, in.Plan, in.Metadata)
+		return map[string]any{"id": id, "plan_id": in.Plan, "metadata": metadata}, e
 	case "v1/checkout-sessions":
 		var in struct {
-			Offer     string `json:"offer_id"`
-			Customer  string `json:"customer_id"`
-			Reference string `json:"reference"`
+			Metadata  json.RawMessage `json:"metadata"`
+			Offer     string          `json:"offer_id"`
+			Customer  string          `json:"customer_id"`
+			Reference string          `json:"reference"`
 		}
 		if decode(r, &in) != nil || len(in.Reference) < 1 || len(in.Reference) > 200 {
 			return nil, errInvalid
+		}
+		metadata, err := decodeMetadata(in.Metadata)
+		if err != nil {
+			return nil, err
 		}
 		var snap checkoutSnapshot
 		e := tx.QueryRow(ctx, `SELECT o.name,o.description,o.amount,o.currency,o.credits,COALESCE(o.plan_id,''),COALESCE(p.interval_unit,''),COALESCE(p.interval_count,0) FROM offers o LEFT JOIN plans p ON p.tenant_id=o.tenant_id AND p.id=o.plan_id WHERE o.tenant_id=$1 AND o.id=$2 AND o.active`, tenant, in.Offer).Scan(&snap.Name, &snap.Description, &snap.Amount, &snap.Currency, &snap.Credits, &snap.Plan, &snap.Unit, &snap.Count)
@@ -162,8 +172,8 @@ func (a *API) checkoutMutate(r *http.Request, tx pgx.Tx, tenant, path string) (a
 		}
 		id := token()
 		var expires time.Time
-		e = tx.QueryRow(ctx, `INSERT INTO checkout_sessions(tenant_id,id,offer_id,customer_id,reference,snapshot,account_fingerprint) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING expires_at`, tenant, id, in.Offer, in.Customer, in.Reference, b, hash(ac.Secret)).Scan(&expires)
-		return map[string]any{"id": id, "path": "/checkout/" + id, "expires_at": expires, "url": strings.TrimRight(checkoutBase(snap.Branding.CheckoutBaseURL, a.PublicWebhookBaseURL), "/") + "/checkout/" + id}, e
+		e = tx.QueryRow(ctx, `INSERT INTO checkout_sessions(tenant_id,id,offer_id,customer_id,reference,snapshot,account_fingerprint,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,COALESCE($8::jsonb,'{}'::jsonb)) RETURNING expires_at`, tenant, id, in.Offer, in.Customer, in.Reference, b, hash(ac.Secret), in.Metadata).Scan(&expires)
+		return map[string]any{"metadata": metadata, "id": id, "path": "/checkout/" + id, "expires_at": expires, "url": strings.TrimRight(checkoutBase(snap.Branding.CheckoutBaseURL, a.PublicWebhookBaseURL), "/") + "/checkout/" + id}, e
 	}
 	return nil, errNotFound
 }

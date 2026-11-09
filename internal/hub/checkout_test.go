@@ -204,3 +204,71 @@ func TestPostgresCheckoutExpiryAndProviderFailure(t *testing.T) {
 		t.Fatal("expired session", out.Code)
 	}
 }
+
+func TestCheckoutMetadataSnapshotAndOfferIDs(t *testing.T) {
+	s := testStore(t)
+	tenant, key, customer := newTenant(t, s)
+	_, other, _ := newTenant(t, s)
+	h := (&API{Store: s, Accounts: Accounts{tenant: {"pagarme": {Secret: "sk_test", PublicKey: "pk_test"}}}}).Handler()
+	payload := `{"name":"Recurring","amount":100,"currency":"brl","interval_unit":"month","interval_count":1,"metadata":{"local_id":"42"}}`
+	out := request(t, h, "POST", "/v1/offers", key, "metadata-offer", payload)
+	if out.Code != 200 {
+		t.Fatal(out.Code, out.Body)
+	}
+	offer := metadataObject(t, out.Body.Bytes())
+	requireMetadata(t, offer, `{"local_id":"42"}`)
+	planID, ok := offer["plan_id"].(string)
+	if !ok || planID == "" || planID == offer["id"] {
+		t.Fatal("missing generated plan ID", offer)
+	}
+	plan := request(t, h, "GET", "/v1/plans/"+planID, key, "", "")
+	if plan.Code != 200 {
+		t.Fatal(plan.Body)
+	}
+	if replay := request(t, h, "POST", "/v1/offers", key, "metadata-offer", payload); replay.Body.String() != out.Body.String() {
+		t.Fatal("offer replay changed")
+	}
+	for i, metadata := range []string{"", `,"metadata":{"purchase":"order-1"}`} {
+		payload := fmt.Sprintf(`{"offer_id":%q,"customer_id":%q,"reference":"snapshot-%d"%s}`, offer["id"], customer, i, metadata)
+		out = request(t, h, "POST", "/v1/checkout-sessions", key, fmt.Sprintf("metadata-session-%d", i), payload)
+		if out.Code != 200 {
+			t.Fatal(out.Code, out.Body)
+		}
+		session := metadataObject(t, out.Body.Bytes())
+		replay := request(t, h, "POST", "/v1/checkout-sessions", key, fmt.Sprintf("metadata-session-%d", i), payload)
+		if replay.Code != 200 || replay.Body.String() != out.Body.String() {
+			t.Fatal("session replay changed", replay.Body)
+		}
+		want := `{}`
+		if i == 1 {
+			want = `{"purchase":"order-1"}`
+		}
+		requireMetadata(t, session, want)
+		if _, err := s.DB.Exec(context.Background(), `UPDATE offers SET metadata='{"changed":true}' WHERE tenant_id=$1 AND id=$2`, tenant, offer["id"]); err != nil {
+			t.Fatal(err)
+		}
+		get := request(t, h, "GET", "/v1/checkout-sessions/"+session["id"].(string), key, "", "")
+		requireMetadata(t, metadataObject(t, get.Body.Bytes()), want)
+		if leak := request(t, h, "GET", "/v1/checkout-sessions/"+session["id"].(string), other, "", ""); leak.Code != 404 {
+			t.Fatal("tenant leak", leak.Body)
+		}
+	}
+
+	list := request(t, h, "GET", "/v1/checkout-sessions", key, "", "")
+	if list.Code != 200 {
+		t.Fatal(list.Code, list.Body)
+	}
+	items := metadataObject(t, list.Body.Bytes())["data"].([]any)
+	if len(items) != 2 {
+		t.Fatal("duplicate sessions", items)
+	}
+	for _, item := range items {
+		if _, ok := item.(map[string]any)["metadata"].(map[string]any); !ok {
+			t.Fatal("missing session metadata", item)
+		}
+	}
+	list = request(t, h, "GET", "/v1/checkout-sessions", other, "", "")
+	if list.Code != 200 || len(metadataObject(t, list.Body.Bytes())["data"].([]any)) != 0 {
+		t.Fatal("tenant session list leak", list.Body)
+	}
+}
