@@ -126,7 +126,11 @@ func TestSubscriptionEventDataLifecycle(t *testing.T) {
 	if out.Code != 200 {
 		t.Fatal(out.Code, out.Body)
 	}
-	requireEventCorrelation(t, eventData(t, s, tenant, "subscription.change_applied"), map[string]any{"subscription_id": "sub", "customer_id": "customer", "plan_id": "cheap", "status": "active", "plan_metadata": map[string]any{"target": true}, "subscription_metadata": map[string]any{"owner": "own"}})
+	applied := eventData(t, s, tenant, "subscription.change_applied")
+	requireEventCorrelation(t, applied, map[string]any{"subscription_id": "sub", "customer_id": "customer", "plan_id": "cheap", "status": "active", "plan_metadata": map[string]any{"target": true}, "subscription_metadata": map[string]any{"owner": "own"}})
+	if _, exists := applied["charge_id"]; exists {
+		t.Fatal("zero-due change includes a charge ID", applied)
+	}
 }
 
 func TestFinancialEventDataCheckout(t *testing.T) {
@@ -329,14 +333,17 @@ func TestSubscriptionEventDataPlanChangeWorker(t *testing.T) {
 				t.Fatal(out.Code, out.Body)
 			}
 			change := metadataObject(t, out.Body.Bytes())
-			want := map[string]any{"subscription_id": "sub", "customer_id": "customer", "plan_id": "plan", "status": "active", "change_id": change["change_id"], "subscription_metadata": map[string]any{"owner": "own"}, "plan_metadata": map[string]any{"owner": "own"}}
+			chargeID, ok := change["charge_id"].(string)
+			if !ok || chargeID == "" {
+				t.Fatal("paid upgrade did not create a charge", change)
+			}
+			want := map[string]any{"subscription_id": "sub", "customer_id": "customer", "plan_id": "plan", "status": "active", "change_id": change["change_id"], "charge_id": chargeID, "subscription_metadata": map[string]any{"owner": "own"}, "plan_metadata": map[string]any{"owner": "own"}}
 			requireEventCorrelation(t, eventData(t, s, tenant, "subscription.change_pending"), want)
 			worker := &Worker{Store: s}
 			c, err := worker.claim(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
-			want["charge_id"] = change["charge_id"]
 			if manual {
 				if err = worker.retry(ctx, c, "provider_configuration", true); err != nil {
 					t.Fatal(err)

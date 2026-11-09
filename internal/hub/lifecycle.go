@@ -147,7 +147,11 @@ func (a *API) lifecycle(r *http.Request, tx pgx.Tx, tenant, id, action string) (
 			return nil, err
 		}
 	}
-	return map[string]any{"change_id": change, "charge_id": charge, "status": state}, emitSubscriptionEvent(ctx, tx, tenant, "subscription.change_"+state, id, map[string]any{"change_id": change})
+	data := map[string]any{"change_id": change}
+	if charge != "" {
+		data["charge_id"] = charge
+	}
+	return map[string]any{"change_id": change, "charge_id": charge, "status": state}, emitSubscriptionEvent(ctx, tx, tenant, "subscription.change_"+state, id, data)
 }
 
 func applyPlanChange(ctx context.Context, tx pgx.Tx, tenant, change string) error {
