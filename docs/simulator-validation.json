@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-28",
+  "tests": {
+    "passed": 63,
+    "skipped": 0,
+    "failed": 0
+  },
+  "go_vet": true,
+  "postgres_race": true,
+  "native_sandbox": {
+    "pix_amount": 50001,
+    "pix_status": "failed",
+    "pix_reason": "payment_declined:500",
+    "card_suffix": "0028",
+    "card_status": "failed",
+    "card_reason": "payment_declined:01",
+    "wallet": 0,
+    "authenticated_failure_webhooks": true
+  },
+  "automated_contracts": [
+    "boleto underpaid 01046010",
+    "boleto overpaid 57400000",
+    "boleto unconciled 70070300",
+    "card processing->paid",
+    "card processing->failed",
+    "refund processing->reversed",
+    "refund processing->paid",
+    "processing->canceled",
+    "paid->chargeback"
+  ],
+  "postgres_financial_checks": [
+    "partial withholds credits",
+    "partial continues verification after network failure",
+    "partial completed payment grants once",
+    "overpaid grants purchased credits once",
+    "declines grant no credits",
+    "buyer address correction changes provider idempotency key"
+  ],
+  "browser_partial_recovery": true,
+  "boleto_native_blocker": "Provider HTTP 412: boleto disabled for this account",
+  "raw_card_or_acquirer_messages_logged": false,
+  "independent_review": "No important financial regressions found"
+}

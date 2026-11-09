@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-27",
+  "provider": "pagarme",
+  "environment": "test",
+  "tenant_id": "19830b3d1e7f498bd28a761916bfab7f30ce2edeb66d13d7c7f0a152733e0489",
+  "one_time_charge": "2f86ab81a94981b8dcf00e532a763c66100fed1aba82a270cbf4f1bf9fe7ba01",
+  "provider_order": "or_XeVjnj30IVTL8PNK",
+  "subscription_id": "9625cc1555f8c3716a06f2eeeb2d8824505557f9f9045bc8228f69e4c5ebf689",
+  "renewal_tested": true,
+  "balance": 75,
+  "webhook": "local authenticated delivery and replay; public provider delivery not verified",
+  "refund_tested": true
+}

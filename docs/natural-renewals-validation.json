@@ -1,0 +1,52 @@
+{
+  "checked_at": "2026-10-29T13:55:15.233528-04:00",
+  "environment": "Pagar.me sandbox",
+  "customer_id": "259ebea62f8f3889cf6ccde459339ec8ae8f831a2c183c9efdd016e74c14d293",
+  "customer_label": "Teste renovação natural · 1, 5 e 7 dias",
+  "wallet_credits": 3,
+  "subscriptions": [
+    {
+      "period_days": 1,
+      "amount_cents": 1000,
+      "credits_per_payment": 1,
+      "subscription_id": "11cff02eee35cd5aad240fd86508a3e19c64fc514071f1d6860e7e1173dc114f",
+      "plan_id": "c2c6470e8e2ad66e58aa8078db6cf7716095dff5be933bbe451973c3269e08cf",
+      "status": "active",
+      "first_charge_status": "paid",
+      "provider_confirmed": "paid",
+      "next_at_utc": "2026-10-30T17:54:09.498691+00:00",
+      "next_at_cuiaba": "2026-10-30T13:54:09.498691-04:00",
+      "cycle": 1
+    },
+    {
+      "period_days": 5,
+      "amount_cents": 1000,
+      "credits_per_payment": 1,
+      "subscription_id": "1c4c904f8569c862b94c3fa027e72ce82fcd6648e997f703c06b473fa9266fce",
+      "plan_id": "f4cc3d253157b907445d9ece15a29b34c55409b15d79614501f124f21e8db7e6",
+      "status": "active",
+      "first_charge_status": "paid",
+      "provider_confirmed": "paid",
+      "next_at_utc": "2026-11-03T17:54:09.515168+00:00",
+      "next_at_cuiaba": "2026-11-03T13:54:09.515168-04:00",
+      "cycle": 1
+    },
+    {
+      "period_days": 7,
+      "amount_cents": 1000,
+      "credits_per_payment": 1,
+      "subscription_id": "b1917215951825626888607ecffee093afec88ffd127848dfbc596a6e663ca30",
+      "plan_id": "b4b8ee34731d557b148ab2846b7e5e1c0b96dfdba1498cbf23fb1f3a7f0908bf",
+      "status": "active",
+      "first_charge_status": "paid",
+      "provider_confirmed": "paid",
+      "next_at_utc": "2026-11-05T17:54:09.522204+00:00",
+      "next_at_cuiaba": "2026-11-05T13:54:09.522204-04:00",
+      "cycle": 1
+    }
+  ],
+  "hours_supported": false,
+  "clock_or_next_at_modified": false,
+  "renewal_status": "awaiting actual scheduled dates",
+  "left_active_by_user_request": true
+}

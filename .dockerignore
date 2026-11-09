@@ -1,0 +1,8 @@
+.env
+providers.json
+.git
+paymenthub
+*.zip
+coverage.out
+.local
+graphify-out

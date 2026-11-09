@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-29",
+  "before": {
+    "details_survived_6200ms": false,
+    "list_returned_without_click": true
+  },
+  "after": {
+    "details_survived_6200ms": true,
+    "manual_refresh_reloads_detail": true,
+    "back_button_returns_list": true,
+    "late_detail_response_after_navigation_ignored": true,
+    "list_auto_refresh_resumes": true
+  },
+  "javascript_syntax": true,
+  "embedded_api_build": true,
+  "scope": "Console charge-detail navigation only; financial tests not repeated"
+}

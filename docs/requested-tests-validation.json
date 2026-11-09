@@ -1,0 +1,243 @@
+{
+  "date": "2026-10-28",
+  "automated": {
+    "passed": 63,
+    "skipped": 0,
+    "failed": 0
+  },
+  "go_vet": true,
+  "javascript_syntax": true,
+  "gateway_direct_and_tunnel": true,
+  "real_sandbox_checkouts": [
+    {
+      "case": "0010",
+      "amount": 1000,
+      "status": "reversed",
+      "reason": "payment_reversed",
+      "provider_order": "or_6XBE3qClmhjG52Gb",
+      "attempt_states": [
+        "paid",
+        "paid",
+        "reversed"
+      ],
+      "webhook_types": [
+        "charge.created",
+        "charge.paid",
+        "charge.refunded",
+        "order.canceled",
+        "order.created",
+        "order.paid"
+      ]
+    },
+    {
+      "case": "0028",
+      "amount": 1000,
+      "status": "failed",
+      "reason": "payment_declined:01",
+      "provider_order": "or_d0jXWAcQBHx39Jlx",
+      "attempt_states": [
+        "failed",
+        "failed"
+      ],
+      "webhook_types": [
+        "charge.created",
+        "charge.payment_failed",
+        "order.created",
+        "order.payment_failed"
+      ]
+    },
+    {
+      "case": "0036",
+      "amount": 1000,
+      "status": "failed",
+      "reason": "payment_declined:00",
+      "provider_order": "or_jZpV3rkGTWsag9Yw",
+      "attempt_states": [
+        "pending",
+        "pending",
+        "pending",
+        "failed"
+      ],
+      "webhook_types": [
+        "charge.created",
+        "charge.processing",
+        "order.created",
+        "order.payment_failed"
+      ]
+    },
+    {
+      "case": "0044",
+      "amount": 1000,
+      "status": "failed",
+      "reason": "payment_declined",
+      "provider_order": "or_vBQwBLSQkf2ODpLr",
+      "attempt_states": [
+        "pending",
+        "failed",
+        "failed",
+        "failed"
+      ],
+      "webhook_types": [
+        "charge.created",
+        "charge.payment_failed",
+        "charge.processing",
+        "order.created",
+        "order.payment_failed"
+      ]
+    },
+    {
+      "case": "0051",
+      "amount": 1000,
+      "status": "reversed",
+      "reason": "payment_reversed",
+      "provider_order": "or_p3WNd8oUm4IzV2e5",
+      "attempt_states": [
+        "pending",
+        "reversed"
+      ],
+      "webhook_types": [
+        "charge.created",
+        "charge.processing",
+        "charge.refunded",
+        "order.canceled",
+        "order.created",
+        "order.payment_failed"
+      ]
+    },
+    {
+      "case": "0069",
+      "amount": 1000,
+      "status": "reversed",
+      "reason": "payment_reversed",
+      "provider_order": "or_Bbld23Gh5SXM25PK",
+      "attempt_states": [
+        "paid",
+        "reversed"
+      ],
+      "webhook_types": [
+        "charge.created",
+        "charge.paid",
+        "order.created",
+        "order.paid"
+      ]
+    },
+    {
+      "case": "0077",
+      "amount": 1000,
+      "status": "reversed",
+      "reason": "payment_reversed",
+      "provider_order": "or_kZPB7y0uzTV2w6g0",
+      "attempt_states": [
+        "paid",
+        "paid",
+        "reversed"
+      ],
+      "webhook_types": [
+        "charge.created",
+        "charge.paid",
+        "charge.processing",
+        "charge.refunded",
+        "order.canceled",
+        "order.created",
+        "order.paid",
+        "order.payment_failed"
+      ]
+    },
+    {
+      "case": "0093",
+      "amount": 1000,
+      "status": "paid",
+      "reason": "subsequent_operation_failed:00",
+      "provider_order": "or_Xg8NYdKuKuOD0kWZ",
+      "attempt_states": [
+        "paid",
+        "paid",
+        "paid",
+        "paid",
+        "paid"
+      ],
+      "webhook_types": [
+        "charge.created",
+        "charge.paid",
+        "charge.processing",
+        "order.created",
+        "order.paid",
+        "order.payment_failed"
+      ]
+    },
+    {
+      "case": "pix_500",
+      "amount": 50000,
+      "status": "reversed",
+      "reason": "payment_reversed",
+      "provider_order": "or_jLQ7XarkF4ia6YG2",
+      "attempt_states": [
+        "pending",
+        "paid",
+        "reversed"
+      ],
+      "webhook_types": [
+        "charge.created",
+        "charge.paid",
+        "charge.pending",
+        "charge.processing",
+        "charge.refunded",
+        "order.canceled",
+        "order.created",
+        "order.paid"
+      ]
+    },
+    {
+      "case": "pix_500_01",
+      "amount": 50001,
+      "status": "failed",
+      "reason": "payment_declined:500",
+      "provider_order": "or_xoBRWlt52sajkZlG",
+      "attempt_states": [
+        "failed",
+        "failed"
+      ],
+      "webhook_types": [
+        "charge.created",
+        "charge.payment_failed",
+        "order.created",
+        "order.payment_failed"
+      ]
+    }
+  ],
+  "real_boleto_worker_fixtures": [
+    {
+      "zip": "01046010",
+      "status": "manual_review",
+      "reason": "provider_http_412"
+    },
+    {
+      "zip": "57400000",
+      "status": "manual_review",
+      "reason": "provider_http_412"
+    },
+    {
+      "zip": "70070300",
+      "status": "manual_review",
+      "reason": "provider_http_412"
+    },
+    {
+      "zip": "01001000",
+      "status": "manual_review",
+      "reason": "provider_http_412"
+    }
+  ],
+  "discrepancies": [
+    {
+      "case": "0036",
+      "documented": "processing then paid",
+      "actual": "processing then failed, acquirer code 00",
+      "hub_behavior": "No credits granted"
+    }
+  ],
+  "correction": "Subsequent failed operation keeps the previously confirmed payment and records subsequent_operation_failed, not a misleading original payment decline",
+  "test_wallet": 1,
+  "test_wallet_explanation": "One credit from case0093 remains because the simulated refund was refused; isolated synthetic customer, no subscriptions",
+  "real_boleto_scenarios_blocked": true,
+  "no_real_funds": true
+}

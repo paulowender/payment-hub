@@ -1,0 +1,28 @@
+{
+  "checked_at": "2026-10-29",
+  "method": "Playwright isolated tab with current local console assets; all API calls and writes intercepted",
+  "script": "scripts/check-subscription-lifecycle.js",
+  "result": {
+    "mockedOnly": true,
+    "compatibleCurrency": true,
+    "explicitPreview": true,
+    "signedUsageCredits": true,
+    "doubleSubmitGuard": true,
+    "maxAmountCap": true,
+    "idempotency": true,
+    "cancelAndTenantGuards": true,
+    "pendingReviewGuard": true,
+    "creditSettlementLabelsAndCurrency": true
+  },
+  "limitations": [
+    "No live provider or financial mutation was sent.",
+    "Visual screenshot review and live lifecycle integration were outside this check."
+  ],
+  "deployed_assets_check": {
+    "url": "http://localhost:18080/console",
+    "status": 200,
+    "js_errors": [],
+    "session": "not authenticated; login screen visible; no login submitted",
+    "saved_regression_script": "passed against deployed assets with all API and financial writes intercepted"
+  }
+}

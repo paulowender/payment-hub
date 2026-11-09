@@ -1,0 +1,18 @@
+{
+  "passed_tests": 46,
+  "skipped_tests": 0,
+  "failed": 0,
+  "postgresql": true,
+  "race": true,
+  "go_vet": true,
+  "browser_tokenization_boundary": "passed with mocked provider",
+  "browser_recurring_consent": "passed with mocked provider",
+  "mobile_overflow": false,
+  "native_pagarme_tokenization_verified": true,
+  "pending": "Boleto enablement by provider; real SaaS notification destination; optional Stripe checkout",
+  "public_gateway_routes": "passed for direct and tunnel configurations",
+  "public_https": "passed on current tunnel",
+  "native_pagarme_checkout_verified": true,
+  "native_recurring_checkout_verified": true,
+  "native_portal_verified": true
+}

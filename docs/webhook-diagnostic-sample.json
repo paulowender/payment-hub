@@ -1,0 +1,543 @@
+{
+  "capture_active": true,
+  "capture_until": "2026-10-28T04:33:25Z",
+  "data": [
+    {
+      "id": 2,
+      "headers": {
+        "Via": {
+          "values": 1,
+          "present": true
+        },
+        "Accept": {
+          "values": 1,
+          "present": true
+        },
+        "Cf-Ray": {
+          "values": 1,
+          "present": true
+        },
+        "Cdn-Loop": {
+          "values": 1,
+          "present": true
+        },
+        "Cf-Ew-Via": {
+          "values": 1,
+          "present": true
+        },
+        "Cf-Worker": {
+          "values": 1,
+          "present": true
+        },
+        "Cf-Visitor": {
+          "values": 1,
+          "present": true
+        },
+        "Tracestate": {
+          "values": 1,
+          "present": true
+        },
+        "User-Agent": {
+          "values": 1,
+          "present": true
+        },
+        "Traceparent": {
+          "values": 1,
+          "present": true
+        },
+        "Cf-Ipcountry": {
+          "values": 1,
+          "present": true
+        },
+        "Content-Type": "application/json",
+        "Cf-Warp-Tag-Id": {
+          "values": 1,
+          "present": true
+        },
+        "Content-Length": "5377",
+        "X-Datadog-Tags": {
+          "values": 1,
+          "present": true
+        },
+        "Accept-Encoding": {
+          "values": 1,
+          "present": true
+        },
+        "X-Forwarded-For": {
+          "values": 1,
+          "present": true
+        },
+        "_authentication": {
+          "basic_auth_parsed": false,
+          "authorization_present": false
+        },
+        "Cf-Connecting-Ip": {
+          "values": 1,
+          "present": true
+        },
+        "X-Forwarded-Host": {
+          "values": 1,
+          "present": true
+        },
+        "X-Forwarded-Proto": {
+          "values": 1,
+          "present": true
+        },
+        "X-Datadog-Trace-Id": {
+          "values": 1,
+          "present": true
+        },
+        "X-Datadog-Parent-Id": {
+          "values": 1,
+          "present": true
+        },
+        "X-Datadog-Sampling-Priority": {
+          "values": 1,
+          "present": true
+        }
+      },
+      "payload": {
+        "body": {
+          "id": "hook_g389Qngfl5SrjyNp",
+          "data": {
+            "id": "or_Ep6BnXos0NiQWm2J",
+            "code": "[redacted string; 52 chars]",
+            "items": [
+              {
+                "id": "[redacted string; 19 chars]",
+                "code": "[redacted string; 52 chars]",
+                "type": "product",
+                "amount": "[redacted scalar]",
+                "status": "active",
+                "quantity": "[redacted scalar]",
+                "created_at": "[redacted string; 19 chars]",
+                "updated_at": "[redacted string; 19 chars]",
+                "description": "[redacted string; 36 chars]"
+              }
+            ],
+            "amount": "[redacted scalar]",
+            "closed": "[redacted scalar]",
+            "status": "canceled",
+            "charges": [
+              {
+                "id": "ch_a0pNzDdvFXtYz5WX",
+                "code": "[redacted string; 52 chars]",
+                "amount": "[redacted scalar]",
+                "status": "canceled",
+                "paid_at": "[redacted string; 19 chars]",
+                "currency": "BRL",
+                "customer": {
+                  "id": "cus_Nj5ZDMlHwkubvALX",
+                  "code": "[redacted string; 16 chars]",
+                  "name": "[redacted string; 19 chars]",
+                  "type": "individual",
+                  "email": "[redacted string; 35 chars]",
+                  "phones": {
+                    "mobile_phone": {
+                      "number": "[redacted string; 9 chars]",
+                      "area_code": "[redacted string; 2 chars]",
+                      "country_code": "[redacted string; 2 chars]"
+                    }
+                  },
+                  "address": {
+                    "id": "[redacted string; 21 chars]",
+                    "city": "[redacted string; 6 chars]",
+                    "state": "[redacted string; 2 chars]",
+                    "line_1": "[redacted string; 22 chars]",
+                    "status": "active",
+                    "country": "[redacted string; 2 chars]",
+                    "zip_code": "[redacted string; 8 chars]",
+                    "created_at": "[redacted string; 19 chars]",
+                    "updated_at": "[redacted string; 19 chars]"
+                  },
+                  "document": "[redacted string; 11 chars]",
+                  "metadata": {
+                    "hub_charge_id": "[redacted string; 64 chars]"
+                  },
+                  "created_at": "[redacted string; 19 chars]",
+                  "delinquent": "[redacted scalar]",
+                  "updated_at": "[redacted string; 19 chars]",
+                  "document_type": "[redacted string; 3 chars]"
+                },
+                "metadata": {
+                  "hub_charge_id": "[redacted string; 64 chars]"
+                },
+                "created_at": "[redacted string; 19 chars]",
+                "updated_at": "[redacted string; 19 chars]",
+                "canceled_at": "[redacted string; 19 chars]",
+                "paid_amount": "[redacted scalar]",
+                "payment_method": "[redacted string; 11 chars]",
+                "canceled_amount": "[redacted scalar]",
+                "last_transaction": {
+                  "id": "[redacted string; 21 chars]",
+                  "card": {
+                    "id": "card_lwkZLdUvEiy3ZjMr",
+                    "type": "credit",
+                    "brand": "[redacted string; 4 chars]",
+                    "status": "active",
+                    "exp_year": "[redacted scalar]",
+                    "exp_month": "[redacted scalar]",
+                    "created_at": "[redacted string; 19 chars]",
+                    "updated_at": "[redacted string; 19 chars]",
+                    "holder_name": "[redacted string; 19 chars]",
+                    "billing_address": {
+                      "city": "[redacted string; 6 chars]",
+                      "state": "[redacted string; 2 chars]",
+                      "line_1": "[redacted string; 22 chars]",
+                      "country": "[redacted string; 2 chars]",
+                      "zip_code": "[redacted string; 8 chars]"
+                    },
+                    "first_six_digits": "[redacted string; 6 chars]",
+                    "last_four_digits": "[redacted string; 4 chars]"
+                  },
+                  "amount": "[redacted scalar]",
+                  "status": "refunded",
+                  "success": "[redacted scalar]",
+                  "metadata": {},
+                  "created_at": "[redacted string; 19 chars]",
+                  "updated_at": "[redacted string; 19 chars]",
+                  "acquirer_nsu": "[redacted string; 5 chars]",
+                  "acquirer_tid": "[redacted string; 36 chars]",
+                  "installments": "[redacted scalar]",
+                  "payment_type": "[redacted string; 3 chars]",
+                  "acquirer_name": "[redacted string; 9 chars]",
+                  "operation_key": "[redacted string; 9 chars]",
+                  "operation_type": "[redacted string; 6 chars]",
+                  "acquirer_message": "[redacted string; 31 chars]",
+                  "gateway_response": {
+                    "code": "[redacted string; 3 chars]"
+                  },
+                  "transaction_type": "[redacted string; 11 chars]",
+                  "acquirer_auth_code": "[redacted string; 2 chars]",
+                  "antifraud_response": {},
+                  "acquirer_return_code": "[redacted string; 2 chars]"
+                }
+              }
+            ],
+            "currency": "BRL",
+            "customer": {
+              "id": "cus_Nj5ZDMlHwkubvALX",
+              "code": "[redacted string; 16 chars]",
+              "name": "[redacted string; 19 chars]",
+              "type": "individual",
+              "email": "[redacted string; 35 chars]",
+              "phones": {
+                "mobile_phone": {
+                  "number": "[redacted string; 9 chars]",
+                  "area_code": "[redacted string; 2 chars]",
+                  "country_code": "[redacted string; 2 chars]"
+                }
+              },
+              "address": {
+                "id": "[redacted string; 21 chars]",
+                "city": "[redacted string; 6 chars]",
+                "state": "[redacted string; 2 chars]",
+                "line_1": "[redacted string; 22 chars]",
+                "status": "active",
+                "country": "[redacted string; 2 chars]",
+                "zip_code": "[redacted string; 8 chars]",
+                "created_at": "[redacted string; 19 chars]",
+                "updated_at": "[redacted string; 19 chars]"
+              },
+              "document": "[redacted string; 11 chars]",
+              "metadata": {
+                "hub_charge_id": "[redacted string; 64 chars]"
+              },
+              "created_at": "[redacted string; 19 chars]",
+              "delinquent": "[redacted scalar]",
+              "updated_at": "[redacted string; 19 chars]",
+              "document_type": "[redacted string; 3 chars]"
+            },
+            "metadata": {
+              "hub_charge_id": "[redacted string; 64 chars]"
+            },
+            "checkouts": [],
+            "closed_at": "[redacted string; 19 chars]",
+            "created_at": "[redacted string; 19 chars]",
+            "updated_at": "[redacted string; 19 chars]"
+          },
+          "type": "order.canceled",
+          "account": {
+            "id": "[redacted string; 20 chars]",
+            "name": "[redacted string; 18 chars]"
+          },
+          "created_at": "[redacted string; 27 chars]"
+        }
+      },
+      "body_bytes": 5377,
+      "received_at": "2026-10-28T04:19:19.719143+00:00",
+      "authenticated": false
+    },
+    {
+      "id": 1,
+      "headers": {
+        "Via": {
+          "values": 1,
+          "present": true
+        },
+        "Accept": {
+          "values": 1,
+          "present": true
+        },
+        "Cf-Ray": {
+          "values": 1,
+          "present": true
+        },
+        "Baggage": {
+          "values": 1,
+          "present": true
+        },
+        "Cdn-Loop": {
+          "values": 1,
+          "present": true
+        },
+        "Cf-Ew-Via": {
+          "values": 1,
+          "present": true
+        },
+        "Cf-Worker": {
+          "values": 1,
+          "present": true
+        },
+        "Cf-Visitor": {
+          "values": 1,
+          "present": true
+        },
+        "Tracestate": {
+          "values": 1,
+          "present": true
+        },
+        "User-Agent": {
+          "values": 1,
+          "present": true
+        },
+        "Traceparent": {
+          "values": 1,
+          "present": true
+        },
+        "Cf-Ipcountry": {
+          "values": 1,
+          "present": true
+        },
+        "Content-Type": "application/json",
+        "Cf-Warp-Tag-Id": {
+          "values": 1,
+          "present": true
+        },
+        "Content-Length": "5377",
+        "X-Datadog-Tags": {
+          "values": 1,
+          "present": true
+        },
+        "Accept-Encoding": {
+          "values": 1,
+          "present": true
+        },
+        "X-Forwarded-For": {
+          "values": 1,
+          "present": true
+        },
+        "_authentication": {
+          "basic_auth_parsed": false,
+          "authorization_present": false
+        },
+        "Cf-Connecting-Ip": {
+          "values": 1,
+          "present": true
+        },
+        "X-Forwarded-Host": {
+          "values": 1,
+          "present": true
+        },
+        "X-Forwarded-Proto": {
+          "values": 1,
+          "present": true
+        },
+        "X-Datadog-Trace-Id": {
+          "values": 1,
+          "present": true
+        },
+        "X-Datadog-Parent-Id": {
+          "values": 1,
+          "present": true
+        },
+        "X-Datadog-Sampling-Priority": {
+          "values": 1,
+          "present": true
+        }
+      },
+      "payload": {
+        "body": {
+          "id": "hook_vJmzBpRfzUErMy0D",
+          "data": {
+            "id": "or_Ep6BnXos0NiQWm2J",
+            "code": "[redacted string; 52 chars]",
+            "items": [
+              {
+                "id": "[redacted string; 19 chars]",
+                "code": "[redacted string; 52 chars]",
+                "type": "product",
+                "amount": "[redacted scalar]",
+                "status": "active",
+                "quantity": "[redacted scalar]",
+                "created_at": "[redacted string; 19 chars]",
+                "updated_at": "[redacted string; 19 chars]",
+                "description": "[redacted string; 36 chars]"
+              }
+            ],
+            "amount": "[redacted scalar]",
+            "closed": "[redacted scalar]",
+            "status": "canceled",
+            "charges": [
+              {
+                "id": "ch_a0pNzDdvFXtYz5WX",
+                "code": "[redacted string; 52 chars]",
+                "amount": "[redacted scalar]",
+                "status": "canceled",
+                "paid_at": "[redacted string; 19 chars]",
+                "currency": "BRL",
+                "customer": {
+                  "id": "cus_Nj5ZDMlHwkubvALX",
+                  "code": "[redacted string; 16 chars]",
+                  "name": "[redacted string; 19 chars]",
+                  "type": "individual",
+                  "email": "[redacted string; 35 chars]",
+                  "phones": {
+                    "mobile_phone": {
+                      "number": "[redacted string; 9 chars]",
+                      "area_code": "[redacted string; 2 chars]",
+                      "country_code": "[redacted string; 2 chars]"
+                    }
+                  },
+                  "address": {
+                    "id": "[redacted string; 21 chars]",
+                    "city": "[redacted string; 6 chars]",
+                    "state": "[redacted string; 2 chars]",
+                    "line_1": "[redacted string; 22 chars]",
+                    "status": "active",
+                    "country": "[redacted string; 2 chars]",
+                    "zip_code": "[redacted string; 8 chars]",
+                    "created_at": "[redacted string; 19 chars]",
+                    "updated_at": "[redacted string; 19 chars]"
+                  },
+                  "document": "[redacted string; 11 chars]",
+                  "metadata": {
+                    "hub_charge_id": "[redacted string; 64 chars]"
+                  },
+                  "created_at": "[redacted string; 19 chars]",
+                  "delinquent": "[redacted scalar]",
+                  "updated_at": "[redacted string; 19 chars]",
+                  "document_type": "[redacted string; 3 chars]"
+                },
+                "metadata": {
+                  "hub_charge_id": "[redacted string; 64 chars]"
+                },
+                "created_at": "[redacted string; 19 chars]",
+                "updated_at": "[redacted string; 19 chars]",
+                "canceled_at": "[redacted string; 19 chars]",
+                "paid_amount": "[redacted scalar]",
+                "payment_method": "[redacted string; 11 chars]",
+                "canceled_amount": "[redacted scalar]",
+                "last_transaction": {
+                  "id": "[redacted string; 21 chars]",
+                  "card": {
+                    "id": "card_lwkZLdUvEiy3ZjMr",
+                    "type": "credit",
+                    "brand": "[redacted string; 4 chars]",
+                    "status": "active",
+                    "exp_year": "[redacted scalar]",
+                    "exp_month": "[redacted scalar]",
+                    "created_at": "[redacted string; 19 chars]",
+                    "updated_at": "[redacted string; 19 chars]",
+                    "holder_name": "[redacted string; 19 chars]",
+                    "billing_address": {
+                      "city": "[redacted string; 6 chars]",
+                      "state": "[redacted string; 2 chars]",
+                      "line_1": "[redacted string; 22 chars]",
+                      "country": "[redacted string; 2 chars]",
+                      "zip_code": "[redacted string; 8 chars]"
+                    },
+                    "first_six_digits": "[redacted string; 6 chars]",
+                    "last_four_digits": "[redacted string; 4 chars]"
+                  },
+                  "amount": "[redacted scalar]",
+                  "status": "refunded",
+                  "success": "[redacted scalar]",
+                  "metadata": {},
+                  "created_at": "[redacted string; 19 chars]",
+                  "updated_at": "[redacted string; 19 chars]",
+                  "acquirer_nsu": "[redacted string; 5 chars]",
+                  "acquirer_tid": "[redacted string; 36 chars]",
+                  "installments": "[redacted scalar]",
+                  "payment_type": "[redacted string; 3 chars]",
+                  "acquirer_name": "[redacted string; 9 chars]",
+                  "operation_key": "[redacted string; 9 chars]",
+                  "operation_type": "[redacted string; 6 chars]",
+                  "acquirer_message": "[redacted string; 31 chars]",
+                  "gateway_response": {
+                    "code": "[redacted string; 3 chars]"
+                  },
+                  "transaction_type": "[redacted string; 11 chars]",
+                  "acquirer_auth_code": "[redacted string; 2 chars]",
+                  "antifraud_response": {},
+                  "acquirer_return_code": "[redacted string; 2 chars]"
+                }
+              }
+            ],
+            "currency": "BRL",
+            "customer": {
+              "id": "cus_Nj5ZDMlHwkubvALX",
+              "code": "[redacted string; 16 chars]",
+              "name": "[redacted string; 19 chars]",
+              "type": "individual",
+              "email": "[redacted string; 35 chars]",
+              "phones": {
+                "mobile_phone": {
+                  "number": "[redacted string; 9 chars]",
+                  "area_code": "[redacted string; 2 chars]",
+                  "country_code": "[redacted string; 2 chars]"
+                }
+              },
+              "address": {
+                "id": "[redacted string; 21 chars]",
+                "city": "[redacted string; 6 chars]",
+                "state": "[redacted string; 2 chars]",
+                "line_1": "[redacted string; 22 chars]",
+                "status": "active",
+                "country": "[redacted string; 2 chars]",
+                "zip_code": "[redacted string; 8 chars]",
+                "created_at": "[redacted string; 19 chars]",
+                "updated_at": "[redacted string; 19 chars]"
+              },
+              "document": "[redacted string; 11 chars]",
+              "metadata": {
+                "hub_charge_id": "[redacted string; 64 chars]"
+              },
+              "created_at": "[redacted string; 19 chars]",
+              "delinquent": "[redacted scalar]",
+              "updated_at": "[redacted string; 19 chars]",
+              "document_type": "[redacted string; 3 chars]"
+            },
+            "metadata": {
+              "hub_charge_id": "[redacted string; 64 chars]"
+            },
+            "checkouts": [],
+            "closed_at": "[redacted string; 19 chars]",
+            "created_at": "[redacted string; 19 chars]",
+            "updated_at": "[redacted string; 19 chars]"
+          },
+          "type": "order.canceled",
+          "account": {
+            "id": "[redacted string; 20 chars]",
+            "name": "[redacted string; 18 chars]"
+          },
+          "created_at": "[redacted string; 27 chars]"
+        }
+      },
+      "body_bytes": 5377,
+      "received_at": "2026-10-28T04:18:56.649699+00:00",
+      "authenticated": false
+    }
+  ],
+  "remaining": 18
+}

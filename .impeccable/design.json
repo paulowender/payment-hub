@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-27T22:54:47.712588+00:00",
+  "title": "Payment Hub",
+  "extensions": {
+    "breakpoints": [
+      {
+        "name": "mobile",
+        "value": "760px"
+      },
+      {
+        "name": "compact",
+        "value": "1100px"
+      }
+    ],
+    "shadows": [
+      {
+        "name": "dialog",
+        "value": "0 18px 60px #18273928",
+        "purpose": "Separar diálogo da operação."
+      }
+    ]
+  },
+  "components": [],
+  "narrative": {
+    "northStar": "Operação de pagamentos por projeto",
+    "overview": "Dados reais, conexões explícitas e isolamento visível. Bootstrap local com identidade leve.",
+    "keyCharacteristics": [
+      "Leitura de estado",
+      "Escopo por projeto",
+      "Segredos protegidos"
+    ],
+    "rules": [
+      {
+        "name": "Projeto vinculado",
+        "body": "Formulários permanecem associados ao projeto no qual foram abertos.",
+        "section": "layout"
+      }
+    ],
+    "dos": [
+      "Mostrar estado e horário."
+    ],
+    "donts": [
+      "Nunca exibir novamente uma chave salva."
+    ]
+  }
+}

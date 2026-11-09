@@ -1,0 +1,54 @@
+{
+	admin off
+}
+
+(webhook_routes) {
+	@pagarme {
+		method POST
+		path_regexp webhook ^/webhooks/pagarme/[a-f0-9]{64}$
+	}
+	handle @pagarme {
+		reverse_proxy api:8080
+	}
+	@checkoutRead {
+        method GET
+        path_regexp checkoutRead ^/checkout/([a-f0-9]{64}(/data)?|assets/checkout\.(js|css))$
+    }
+    handle @checkoutRead {
+        reverse_proxy api:8080
+    }
+    @checkoutPay {
+        method POST
+        path_regexp checkoutPay ^/checkout/[a-f0-9]{64}/pay$
+    }
+    handle @checkoutPay {
+        reverse_proxy api:8080
+    }
+    @portalRead {
+        method GET
+        path_regexp portalRead ^/portal/([a-f0-9]{64}(/data)?|assets/portal\.(js|css))$
+    }
+    handle @portalRead {
+        reverse_proxy api:8080
+    }
+    @portalAction {
+        method POST
+        path_regexp portalAction ^/portal/[a-f0-9]{64}/(cancel|card)$
+    }
+    handle @portalAction {
+        reverse_proxy api:8080 {
+            header_up X-Forwarded-Proto https
+        }
+    }
+	handle {
+		respond "Not found" 404
+	}
+}
+
+{$PUBLIC_WEBHOOK_HOSTNAME} {
+	import webhook_routes
+}
+
+http://:8081 {
+	import webhook_routes
+}

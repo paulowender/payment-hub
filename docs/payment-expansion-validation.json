@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-28",
+  "tests": {
+    "passed": 46,
+    "skipped": 0,
+    "failed": 0
+  },
+  "postgresql_race": true,
+  "go_vet": true,
+  "javascript_syntax": true,
+  "native_sandbox": {
+    "pix": true,
+    "card_two_installments": true,
+    "weekly_first_cycle": true,
+    "weekly_renewal": true,
+    "renewal_due_advanced_only_for_disposable_test": true,
+    "portal_card_update": true,
+    "portal_cancel": true,
+    "all_four_payments_refunded": true,
+    "final_wallet": 0,
+    "subscription_status": "canceled",
+    "boleto_issued": false,
+    "boleto_blocker": "provider HTTP 412: The boleto payment is disabled."
+  },
+  "notifications": {
+    "transactional_outbox_tested": true,
+    "hmac_retry_ssrf_tenant_tests": true,
+    "real_saas_destination_tested": false,
+    "reason": "No destination configured"
+  },
+  "pricing": {
+    "offer": "Plano Sinapses · Mensal",
+    "amount": 8990,
+    "currency": "brl",
+    "interval_unit": "month",
+    "interval_count": 1,
+    "credits_preserved": 50,
+    "old_offer_archived": true,
+    "old_sessions_unchanged": true
+  },
+  "browser": {
+    "existing_plan_price_visible": true,
+    "inline_recurring_plan_creation": true,
+    "boleto_instructions_simulated": true,
+    "mobile_overflow": false,
+    "charge_history": true,
+    "signing_secret_one_time_display_simulated": true
+  },
+  "review": "Independent read-only review found no important actionable issues",
+  "public_routes_checked": [
+    "checkout",
+    "portal",
+    "webhooks"
+  ],
+  "private_routes_not_public": [
+    "console",
+    "admin",
+    "v1"
+  ],
+  "stripe_checkout_implemented": false
+}

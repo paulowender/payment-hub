@@ -1,0 +1,20 @@
+{
+  "provider_order": "or_6BmP6xWseGS1gW7E",
+  "amount": 1000,
+  "credits_granted": 100,
+  "credits_after_refund": 0,
+  "payment_status": "paid",
+  "final_status": "reversed",
+  "browser_tokenization_verified": true,
+  "native_pagarme_checkout_verified": true,
+  "native_authenticated_webhooks": [
+    "charge.created",
+    "order.paid",
+    "order.created",
+    "charge.paid",
+    "charge.refunded",
+    "order.canceled"
+  ],
+  "sandbox_refunded": true,
+  "recurring_checkout_live_tested": false
+}

@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-29",
+  "postgres_race_tests": {
+    "run": 69,
+    "output": 143,
+    "pass": 69
+  },
+  "go_vet": "passed",
+  "openapi": "references and unique operation IDs passed",
+  "browser": "see subscription-ui-validation.json; intercepted writes",
+  "deployed_read_checks": {
+    "/healthz": {
+      "http": 200,
+      "json": true
+    },
+    "/v1/providers": {
+      "http": 200,
+      "json": true
+    },
+    "/v1/notifications/config": {
+      "http": 200,
+      "json": true
+    },
+    "/v1/notifications/deliveries": {
+      "http": 200,
+      "json": true
+    },
+    "/v1/subscriptions": {
+      "http": 200,
+      "json": true,
+      "lifecycle_fields_present": true
+    }
+  },
+  "public_gateway": "exact webhook checkout portal only; admin console API private",
+  "live_provider_mutations_this_delivery": false,
+  "limitations": [
+    "Financial review cases require operator reconciliation; no automatic refund/recovery endpoint.",
+    "Remote SaaS access still requires private API networking or domain/proxy setup."
+  ]
+}
