@@ -402,13 +402,13 @@ func (a *API) checkoutPay(w http.ResponseWriter, r *http.Request) {
 		_, e = tx.Exec(ctx, "UPDATE checkout_sessions SET charge_id=$2,subscription_id=$3,consent_at=CASE WHEN $3::text IS NOT NULL THEN now() ELSE NULL END WHERE id=$1", sid, charge, sub)
 	}
 	if e == nil {
-		e = emit(ctx, tx, tenant, "checkout.submitted", map[string]any{"session_id": sid, "charge_id": charge, "subscription_id": sub})
+		e = emitFinancialEvent(ctx, tx, tenant, "checkout.submitted", charge, nil)
 	}
 	if e == nil {
-		e = emit(ctx, tx, tenant, "charge.queued", map[string]string{"charge_id": charge})
+		e = emitFinancialEvent(ctx, tx, tenant, "charge.queued", charge, nil)
 	}
 	if e == nil && sub != nil {
-		e = emit(ctx, tx, tenant, "subscription.created", map[string]any{"subscription_id": sub})
+		e = emitSubscriptionEvent(ctx, tx, tenant, "subscription.created", sub.(string), nil)
 	}
 	if e == nil {
 		e = tx.Commit(ctx)

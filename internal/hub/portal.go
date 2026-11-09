@@ -248,7 +248,7 @@ func (a *API) portalAction(w http.ResponseWriter, r *http.Request) {
 		if cardAction {
 			event = "subscription.card_updated"
 		}
-		e = emit(ctx, tx, tenant, event, map[string]string{"subscription_id": sub})
+		e = emitSubscriptionEvent(ctx, tx, tenant, event, sub, nil)
 	}
 	if e == nil {
 		e = tx.Commit(ctx)

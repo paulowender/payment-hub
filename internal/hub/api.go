@@ -259,7 +259,7 @@ func (a *API) mutate(r *http.Request, tx pgx.Tx, tenant, key string) (any, error
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"id": id, "status": "queued", "metadata": metadata}, emit(ctx, tx, tenant, "charge.queued", map[string]string{"charge_id": id})
+		return map[string]any{"id": id, "status": "queued", "metadata": metadata}, emitFinancialEvent(ctx, tx, tenant, "charge.queued", id, nil)
 	case "v1/subscriptions":
 		var in struct {
 			Metadata         json.RawMessage `json:"metadata"`
@@ -297,7 +297,7 @@ func (a *API) mutate(r *http.Request, tx pgx.Tx, tenant, key string) (any, error
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"id": id, "status": "active", "start_at": start, "metadata": metadata}, emit(ctx, tx, tenant, "subscription.created", map[string]string{"subscription_id": id})
+		return map[string]any{"id": id, "status": "active", "start_at": start, "metadata": metadata}, emitSubscriptionEvent(ctx, tx, tenant, "subscription.created", id, nil)
 	}
 	if len(parts) == 4 && parts[1] == "offers" && parts[3] == "archive" {
 		var in struct{}

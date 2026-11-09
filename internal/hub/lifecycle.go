@@ -78,7 +78,7 @@ func (a *API) lifecycle(r *http.Request, tx pgx.Tx, tenant, id, action string) (
 			return nil, err
 		}
 		event := map[string]string{"pause": "subscription.paused", "resume": "subscription.resumed", "cancel": "subscription.canceled"}[action]
-		return map[string]any{"id": id, "status": status, "paused": action == "pause"}, emit(ctx, tx, tenant, event, map[string]string{"subscription_id": id})
+		return map[string]any{"id": id, "status": status, "paused": action == "pause"}, emitSubscriptionEvent(ctx, tx, tenant, event, id, nil)
 	}
 	var in struct {
 		Plan      string `json:"plan_id"`
@@ -147,7 +147,7 @@ func (a *API) lifecycle(r *http.Request, tx pgx.Tx, tenant, id, action string) (
 			return nil, err
 		}
 	}
-	return map[string]any{"change_id": change, "charge_id": charge, "status": state}, emit(ctx, tx, tenant, "subscription.change_"+state, map[string]string{"subscription_id": id, "change_id": change})
+	return map[string]any{"change_id": change, "charge_id": charge, "status": state}, emitSubscriptionEvent(ctx, tx, tenant, "subscription.change_"+state, id, map[string]any{"change_id": change})
 }
 
 func applyPlanChange(ctx context.Context, tx pgx.Tx, tenant, change string) error {

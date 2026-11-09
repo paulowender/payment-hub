@@ -142,7 +142,7 @@ func (w *Worker) schedule(ctx context.Context) error {
 		if due == 0 {
 			event = "charge.paid"
 		}
-		if err = emit(ctx, tx, d.tenant, event, map[string]any{"charge_id": id, "subscription_id": d.id, "customer_id": d.customer, "credits": d.credits, "status": map[bool]string{true: "paid", false: "queued"}[due == 0]}); err != nil {
+		if err = emitFinancialEvent(ctx, tx, d.tenant, event, id, nil); err != nil {
 			return err
 		}
 
@@ -219,12 +219,12 @@ func (w *Worker) retry(ctx context.Context, c Charge, message string, manual boo
 			if _, err = tx.Exec(ctx, "UPDATE subscriptions SET status='past_due' WHERE tenant_id=$1 AND id=$2 AND status<>'canceled'", c.Tenant, subscription); err != nil {
 				return err
 			}
-			if err = emit(ctx, tx, c.Tenant, "subscription.change_review", map[string]string{"charge_id": c.ID, "reason": message}); err != nil {
+			if err = emitSubscriptionEvent(ctx, tx, c.Tenant, "subscription.change_review", subscription, map[string]any{"charge_id": c.ID, "reason": message}); err != nil {
 				return err
 			}
 		}
 
-		if err = emit(ctx, tx, c.Tenant, "charge.manual_review", map[string]string{"charge_id": c.ID, "reason": message}); err != nil {
+		if err = emitFinancialEvent(ctx, tx, c.Tenant, "charge.manual_review", c.ID, map[string]any{"reason": message}); err != nil {
 			return err
 		}
 	}
@@ -242,7 +242,8 @@ func (w *Worker) apply(ctx context.Context, c Charge, p Payment) error {
 	}
 	var credited, reversed bool
 	var previous string
-	err = tx.QueryRow(ctx, "SELECT status,credited,reversed FROM charges WHERE tenant_id=$1 AND id=$2 AND lease_token=$3 FOR UPDATE", c.Tenant, c.ID, c.Lease).Scan(&previous, &credited, &reversed)
+	var subscriptionID string
+	err = tx.QueryRow(ctx, "SELECT status,credited,reversed,COALESCE(subscription_id,'') FROM charges WHERE tenant_id=$1 AND id=$2 AND lease_token=$3 FOR UPDATE", c.Tenant, c.ID, c.Lease).Scan(&previous, &credited, &reversed, &subscriptionID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
@@ -291,7 +292,7 @@ func (w *Worker) apply(ctx context.Context, c Charge, p Payment) error {
 			if err = applyPlanChange(ctx, tx, c.Tenant, changeID); err != nil {
 				return err
 			}
-			if err = emit(ctx, tx, c.Tenant, "subscription.change_applied", map[string]string{"change_id": changeID, "charge_id": c.ID}); err != nil {
+			if err = emitSubscriptionEvent(ctx, tx, c.Tenant, "subscription.change_applied", subscriptionID, map[string]any{"change_id": changeID, "charge_id": c.ID}); err != nil {
 				return err
 			}
 		}
@@ -307,7 +308,7 @@ func (w *Worker) apply(ctx context.Context, c Charge, p Payment) error {
 			if _, err = tx.Exec(ctx, "UPDATE subscriptions SET status='past_due' WHERE tenant_id=$1 AND id=(SELECT subscription_id FROM subscription_changes WHERE tenant_id=$1 AND id=$2) AND status<>'canceled'", c.Tenant, changeID); err != nil {
 				return err
 			}
-			if err = emit(ctx, tx, c.Tenant, "subscription.change_review", map[string]string{"change_id": changeID, "charge_id": c.ID}); err != nil {
+			if err = emitSubscriptionEvent(ctx, tx, c.Tenant, "subscription.change_review", subscriptionID, map[string]any{"change_id": changeID, "charge_id": c.ID}); err != nil {
 				return err
 			}
 		}
@@ -358,7 +359,7 @@ func (w *Worker) apply(ctx context.Context, c Charge, p Payment) error {
 			return err
 		}
 		if used > 0 {
-			if err = emit(ctx, tx, c.Tenant, "subscription.billing_credit_review", map[string]any{"charge_id": c.ID, "billing_credit_used": used}); err != nil {
+			if err = emitSubscriptionEvent(ctx, tx, c.Tenant, "subscription.billing_credit_review", subscriptionID, map[string]any{"charge_id": c.ID, "billing_credit_used": used}); err != nil {
 				return err
 			}
 		}
@@ -384,7 +385,7 @@ func (w *Worker) apply(ctx context.Context, c Charge, p Payment) error {
 		return err
 	}
 	if p.Status != previous {
-		if err = emit(ctx, tx, c.Tenant, "charge."+p.Status, map[string]any{"charge_id": c.ID, "customer_id": c.Customer, "status": p.Status, "credits": c.Credits, "reason": p.Detail}); err != nil {
+		if err = emitFinancialEvent(ctx, tx, c.Tenant, "charge."+p.Status, c.ID, map[string]any{"reason": p.Detail}); err != nil {
 			return err
 		}
 	}

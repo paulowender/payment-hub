@@ -47,7 +47,7 @@ func TestNotificationSSRF(t *testing.T) {
 func TestNotificationDurableSigningAndIsolation(t *testing.T) {
 	ctx := context.Background()
 	s := testStore(t)
-	tenant, _, _ := newTenant(t, s)
+	tenant, _ := eventFixture(t, s, "own")
 	other, _, _ := newTenant(t, s)
 	vault, err := NewVault(s, strings.Repeat("12", 32))
 	if err != nil {
@@ -92,7 +92,7 @@ func TestNotificationDurableSigningAndIsolation(t *testing.T) {
 	}
 	defer tx.Rollback(ctx)
 	var id int64
-	if err = emit(ctx, tx, tenant, "charge.paid", map[string]string{"charge_id": "ch_1"}); err != nil {
+	if err = emitFinancialEvent(ctx, tx, tenant, "charge.paid", "charge", nil); err != nil {
 		t.Fatal(err)
 	}
 	if err = tx.QueryRow(ctx, "SELECT id FROM events WHERE tenant_id=$1", tenant).Scan(&id); err != nil {
@@ -105,7 +105,7 @@ func TestNotificationDurableSigningAndIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = emit(ctx, rollbackTx, tenant, "charge.failed", map[string]string{"charge_id": "rolled-back"}); err != nil {
+	if err = emitFinancialEvent(ctx, rollbackTx, tenant, "charge.failed", "charge", nil); err != nil {
 		t.Fatal(err)
 	}
 	if err = rollbackTx.Rollback(ctx); err != nil {
@@ -170,6 +170,7 @@ func TestNotificationDurableSigningAndIsolation(t *testing.T) {
 	if envelope["tenant_id"] != tenant || envelope["version"] != float64(1) || envelope["created_at"] == nil {
 		t.Fatal("incomplete envelope")
 	}
+	requireEventCorrelation(t, envelope["data"].(map[string]any), map[string]any{"charge_id": "charge", "status": "paid", "charge_metadata": map[string]any{"owner": "own"}, "subscription_metadata": map[string]any{"owner": "own"}, "plan_metadata": map[string]any{"owner": "own"}, "checkout_session_metadata": map[string]any{"owner": "own"}})
 	// Exhaustion persists a dead letter; manual retry is still possible.
 	if _, err = s.DB.Exec(ctx, "UPDATE notification_deliveries SET status='failed',attempts=7,next_at=now() WHERE tenant_id=$1", tenant); err != nil {
 		t.Fatal(err)
@@ -185,5 +186,43 @@ func TestNotificationDurableSigningAndIsolation(t *testing.T) {
 	}
 	if status != "dead" || attempts != 8 {
 		t.Fatalf("not dead: %s/%d", status, attempts)
+	}
+}
+
+func TestNotificationMetadata(t *testing.T) {
+	s := testStore(t)
+	tenant, key := eventFixture(t, s, "own")
+	eventFixture(t, s, "foreign")
+	vault, err := NewVault(s, strings.Repeat("12", 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := (&API{Store: s, Vault: vault, Accounts: Accounts{tenant: {"stripe": {Secret: "sk_test_example", Environment: "test"}}}}).Handler()
+	out := request(t, h, "POST", "/v1/notifications/config", key, "config", `{"url":"https://example.com/hook","enabled":true}`)
+	if out.Code != 200 {
+		t.Fatal(out.Code, out.Body)
+	}
+	out = request(t, h, "POST", "/v1/charges", key, "queued", `{"customer_id":"customer","provider":"stripe","provider_customer":"cus_private","payment_method":"pm_private","amount":1000,"currency":"brl","metadata":{"purchase":"notify"}}`)
+	if out.Code != 200 {
+		t.Fatal(out.Code, out.Body)
+	}
+	var raw []byte
+	if err = s.DB.QueryRow(context.Background(), `SELECT payload FROM notification_deliveries WHERE tenant_id=$1`, tenant).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	envelope := metadataObject(t, raw)
+	requireEventCorrelation(t, envelope["data"].(map[string]any), map[string]any{"customer_id": "customer", "status": "queued", "charge_metadata": map[string]any{"purchase": "notify"}, "customer_metadata": map[string]any{"owner": "own", "nested": map[string]any{"keep": true}}})
+	if envelope["tenant_id"] != tenant || envelope["type"] != "charge.queued" || envelope["version"] != float64(1) {
+		t.Fatal(envelope)
+	}
+	if _, err = s.DB.Exec(context.Background(), `UPDATE customers SET metadata='{"changed":true}' WHERE tenant_id=$1`, tenant); err != nil {
+		t.Fatal(err)
+	}
+	var after []byte
+	if err = s.DB.QueryRow(context.Background(), `SELECT payload FROM notification_deliveries WHERE tenant_id=$1`, tenant).Scan(&after); err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(raw) {
+		t.Fatal("queued snapshot changed")
 	}
 }
