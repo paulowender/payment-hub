@@ -64,7 +64,7 @@ func fail(w http.ResponseWriter, err error) {
 			code, msg = 404, "referenced_resource_not_found"
 		case "23505":
 			code, msg = 409, "resource_already_exists"
-		case "23514", "22003", "22008", "22007":
+		case "23514", "22003", "22008", "22007", "22P02", "22P05":
 			code, msg = 400, "invalid_request"
 		}
 	}

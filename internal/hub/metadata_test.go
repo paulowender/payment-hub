@@ -122,6 +122,21 @@ func TestMetadataHTTPValidation(t *testing.T) {
 					t.Fatalf("invalid metadata accepted: %d %s", out.Code, out.Body)
 				}
 			}
+			for _, tc := range []struct{ name, raw string }{
+				{"escaped NUL value", `{"x":"\u0000"}`},
+				{"escaped NUL key", `{"\u0000":"x"}`},
+				{"lone high surrogate", `{"x":"\ud800"}`},
+				{"lone low surrogate", `{"x":"\udc00"}`},
+				{"invalid surrogate pair", `{"x":"\ud800\ud800"}`},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					out := request(t, h, "POST", "/v1/"+resource.path, key, "jsonb-"+resource.path+"-"+tc.name, strings.TrimSuffix(resource.body, "}")+`,"metadata":`+tc.raw+`}`)
+					if out.Code != http.StatusBadRequest || metadataObject(t, out.Body.Bytes())["error"] != "invalid_request" {
+						t.Fatalf("JSONB-incompatible metadata: %d %s", out.Code, out.Body)
+					}
+				})
+			}
+
 			raw := `{"x":"` + strings.Repeat("x", 8184) + `"}`
 			out := request(t, h, "POST", "/v1/"+resource.path, key, "boundary-"+resource.path, strings.TrimSuffix(resource.body, "}")+`,"metadata":`+raw+`}`)
 			if out.Code != 200 {
