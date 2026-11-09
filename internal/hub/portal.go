@@ -242,6 +242,9 @@ func (a *API) portalAction(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		_, e = tx.Exec(ctx, `UPDATE subscriptions SET status='canceled' WHERE tenant_id=$1 AND id=$2`, tenant, sub)
+		if e == nil {
+			e = cancelScheduledPlanChange(ctx, tx, tenant, sub)
+		}
 	}
 	if e == nil {
 		event := "subscription.canceled"

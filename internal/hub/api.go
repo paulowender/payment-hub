@@ -182,6 +182,12 @@ func (a *API) mutate(r *http.Request, tx pgx.Tx, tenant, key string) (any, error
 		if len(parts) == 4 && (parts[3] == "pause" || parts[3] == "resume" || parts[3] == "cancel" || parts[3] == "change-plan") {
 			return a.lifecycle(r, tx, tenant, parts[2], parts[3])
 		}
+		if len(parts) == 5 && parts[3] == "change-plan" && parts[4] == "schedule" {
+			return a.lifecycle(r, tx, tenant, parts[2], "schedule")
+		}
+		if len(parts) == 6 && parts[3] == "change-plan" && parts[4] == "schedule" && parts[5] == "cancel" {
+			return a.lifecycle(r, tx, tenant, parts[2], "schedule-cancel")
+		}
 		if len(parts) == 5 && parts[3] == "change-plan" && parts[4] == "preview" {
 			return a.lifecycle(r, tx, tenant, parts[2], "preview")
 		}

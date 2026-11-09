@@ -94,6 +94,12 @@ func (w *Worker) schedule(ctx context.Context) error {
 		if d.tenant != tenant {
 			continue
 		}
+		// Re-read after locking: a schedule may have committed after the due-list snapshot.
+		var scheduled string
+		err = tx.QueryRow(ctx, `SELECT c.id,p.amount,p.currency,p.credits FROM scheduled_plan_changes c JOIN plans p ON p.tenant_id=c.tenant_id AND p.id=c.target_plan_id WHERE c.tenant_id=$1 AND c.subscription_id=$2 AND c.status='scheduled'`, d.tenant, d.id).Scan(&scheduled, &d.amount, &d.currency, &d.credits)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
 		used := d.billingCredit
 		if used > d.amount {
 			used = d.amount
@@ -107,6 +113,11 @@ func (w *Worker) schedule(ctx context.Context) error {
 		_, err = tx.Exec(ctx, `INSERT INTO charges(tenant_id,id,customer_id,provider,provider_customer,payment_method,amount,currency,credits,subscription_id,cycle,account_fingerprint) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, d.tenant, id, d.customer, d.provider, d.providerCustomer, d.method, chargeAmount, d.currency, d.credits, d.id, d.cycle, d.fingerprint)
 		if err != nil {
 			return err
+		}
+		if scheduled != "" {
+			if _, err = tx.Exec(ctx, "UPDATE scheduled_plan_changes SET charge_id=$3,status='pending_payment',updated_at=now() WHERE tenant_id=$1 AND id=$2", d.tenant, scheduled, id); err != nil {
+				return err
+			}
 		}
 		if _, err = tx.Exec(ctx, "UPDATE charges SET billing_credit_used=$3 WHERE tenant_id=$1 AND id=$2", d.tenant, id, used); err != nil {
 			return err
@@ -141,6 +152,11 @@ func (w *Worker) schedule(ctx context.Context) error {
 		event := "charge.queued"
 		if due == 0 {
 			event = "charge.paid"
+		}
+		if due == 0 && scheduled != "" {
+			if err = settleScheduledPlanChange(ctx, tx, d.tenant, id, "paid", "queued", false); err != nil {
+				return err
+			}
 		}
 		if err = emitFinancialEvent(ctx, tx, d.tenant, event, id, nil); err != nil {
 			return err
@@ -224,6 +240,9 @@ func (w *Worker) retry(ctx context.Context, c Charge, message string, manual boo
 			}
 		}
 
+		if err = settleScheduledPlanChange(ctx, tx, c.Tenant, c.ID, "manual_review", c.Status, false); err != nil {
+			return err
+		}
 		if err = emitFinancialEvent(ctx, tx, c.Tenant, "charge.manual_review", c.ID, map[string]any{"reason": message}); err != nil {
 			return err
 		}
@@ -250,10 +269,15 @@ func (w *Worker) apply(ctx context.Context, c Charge, p Payment) error {
 	if err != nil {
 		return err
 	}
+	var scheduledIneligible, scheduledReviewed bool
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM scheduled_plan_changes sc JOIN subscriptions s ON s.tenant_id=sc.tenant_id AND s.id=sc.subscription_id WHERE sc.tenant_id=$1 AND sc.charge_id=$2 AND (sc.status='canceled' OR s.status='canceled' OR s.paused_at IS NOT NULL OR sc.payment_review_at IS NOT NULL)),EXISTS(SELECT 1 FROM scheduled_plan_changes WHERE tenant_id=$1 AND charge_id=$2 AND payment_review_at IS NOT NULL)`, c.Tenant, c.ID).Scan(&scheduledIneligible, &scheduledReviewed); err != nil {
+		return err
+	}
+	previouslyCredited := credited
 	// A late pending response must never undo a confirmed payment or a reversal.
 	if reversed {
 		p.Status = "reversed"
-	} else if credited && p.Status != "reversed" {
+	} else if (credited || scheduledReviewed) && p.Status != "reversed" {
 		if p.Status == "failed" {
 			p.Detail = strings.Replace(p.Detail, "payment_declined", "subsequent_operation_failed", 1)
 			if p.Detail == "" {
@@ -318,7 +342,7 @@ func (w *Worker) apply(ctx context.Context, c Charge, p Payment) error {
 			return err
 		}
 	}
-	if p.Status == "paid" && !credited {
+	if p.Status == "paid" && !credited && !scheduledIneligible {
 		if c.Credits > 0 {
 			if _, err = changeWallet(ctx, tx, c.Tenant, c.Customer, c.Credits, "payment", c.ID, false); err != nil {
 				return err
@@ -379,6 +403,9 @@ func (w *Worker) apply(ctx context.Context, c Charge, p Payment) error {
 	_, err = tx.Exec(ctx, `UPDATE charges SET payment_instructions=CASE WHEN $10::jsonb='{}'::jsonb THEN payment_instructions ELSE $10::jsonb END,status=$4,provider_id=$5,client_secret=$6,credited=$7,reversed=$8,provider_charge_id=$9,last_error=$11,lease_until=NULL,lease_token=NULL,
  next_at=now()+CASE WHEN $4 IN ('paid','failed') THEN interval '6 hours' ELSE interval '30 seconds' END,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND lease_token=$3`, c.Tenant, c.ID, c.Lease, p.Status, p.ID, p.ClientSecret, credited, reversed, p.Origin, instructions, p.Detail)
 	if err != nil {
+		return err
+	}
+	if err = settleScheduledPlanChange(ctx, tx, c.Tenant, c.ID, p.Status, previous, previouslyCredited); err != nil {
 		return err
 	}
 	if err = recordChargeHistory(ctx, tx, c, attemptKind(c), p.Status, p.Detail); err != nil {
