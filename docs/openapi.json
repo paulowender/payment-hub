@@ -249,7 +249,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Customer created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerCreateResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -335,7 +342,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Customers including metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetadataResourceList"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -420,7 +434,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Customer including metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetadataResource"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -496,7 +517,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Plan created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanCreateResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -582,7 +610,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Plans including metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetadataResourceList"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -667,7 +702,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Plan including metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetadataResource"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -743,7 +785,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Charge queued; this is not proof of payment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChargeCreateResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -829,7 +878,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Charges including metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetadataResourceList"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -914,7 +970,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Charge including metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetadataResource"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -990,7 +1053,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Subscription created; this is not proof of payment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionCreateResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -1076,7 +1146,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Subscriptions including metadata and any pending change projections",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetadataResourceList"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -1161,7 +1238,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Subscription including metadata and pending scheduled change projection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionResource"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -2481,7 +2565,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Offer created with its offer ID and recurring plan ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferCreateResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -2567,7 +2658,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Offers including metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetadataResourceList"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -2652,7 +2750,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Checkout session created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutSessionCreateResponse"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -2738,7 +2843,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Checkout sessions including metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetadataResourceList"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -2823,7 +2935,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Offer including metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetadataResource"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -2899,7 +3018,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Success (JSON resource or data list)"
+            "description": "Checkout session including metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetadataResource"
+                }
+              }
+            }
           },
           "400": {
             "description": "Invalid request",
@@ -5544,6 +5670,214 @@
         }
       }
     },
+    "/v1/subscriptions/{id}/change-plan/schedule": {
+      "post": {
+        "summary": "Schedule a plan change for the next renewal",
+        "description": "Charges the target plan at renewal but keeps the source plan active until the linked charge is paid.",
+        "operationId": "post_subscription_change_plan_schedule",
+        "security": [
+          {
+            "ProjectBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScheduledPlanChangeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Plan change scheduled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledPlanChangeResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or currency mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Subscription or target plan not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Subscription is not eligible or already has a conflicting change",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/subscriptions/{id}/change-plan/schedule/cancel": {
+      "post": {
+        "summary": "Cancel an unlinked scheduled plan change",
+        "description": "Cancellation is allowed only before the renewal charge is linked. Canceling the subscription itself also cancels its schedule.",
+        "operationId": "post_subscription_change_plan_schedule_cancel",
+        "security": [
+          {
+            "ProjectBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Schedule canceled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduledPlanChangeCancelResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Subscription not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No cancellable schedule or renewal charge already linked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/subscriptions/{id}/changes": {
       "get": {
         "summary": "List latest 100 subscription plan changes",
@@ -5725,6 +6059,9 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 200
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
           }
         },
         "additionalProperties": false,
@@ -5768,6 +6105,9 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 365
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
           }
         },
         "additionalProperties": false,
@@ -5844,6 +6184,9 @@
             "type": "integer",
             "minimum": 0,
             "maximum": 1000000000
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
           }
         },
         "additionalProperties": false,
@@ -5906,6 +6249,9 @@
           "start_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
           }
         },
         "additionalProperties": false,
@@ -5962,6 +6308,102 @@
           "error": {
             "type": "string"
           }
+        }
+      },
+      "Metadata": {
+        "type": "object",
+        "description": "Optional opaque JSON object, at most 8192 serialized bytes. Omitted metadata is returned as an empty object. Never include secrets or payment-card data.",
+        "additionalProperties": true,
+        "example": {
+          "source": "prontei",
+          "entity": "plan_version",
+          "local_id": "42"
+        }
+      },
+      "MetadataResource": {
+        "type": "object",
+        "description": "Authenticated resource row. Resource-specific fields are returned alongside metadata.",
+        "required": ["metadata"],
+        "additionalProperties": true,
+        "properties": {
+          "metadata": {"$ref": "#/components/schemas/Metadata"}
+        }
+      },
+      "MetadataResourceList": {
+        "type": "object",
+        "required": ["data"],
+        "additionalProperties": false,
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {"$ref": "#/components/schemas/MetadataResource"}
+          }
+        }
+      },
+      "CustomerCreateResponse": {
+        "type": "object",
+        "required": ["id", "external_id", "metadata"],
+        "properties": {
+          "id": {"type": "string"},
+          "external_id": {"type": "string"},
+          "metadata": {"$ref": "#/components/schemas/Metadata"}
+        }
+      },
+      "PlanCreateResponse": {
+        "type": "object",
+        "required": ["id", "metadata"],
+        "properties": {
+          "id": {"type": "string"},
+          "metadata": {"$ref": "#/components/schemas/Metadata"}
+        }
+      },
+      "OfferCreateResponse": {
+        "type": "object",
+        "required": ["id", "plan_id", "metadata"],
+        "properties": {
+          "id": {"type": "string", "description": "Offer ID"},
+          "plan_id": {"type": "string", "description": "Generated or referenced recurring plan ID; empty for a one-time offer."},
+          "metadata": {"$ref": "#/components/schemas/Metadata"}
+        }
+      },
+      "CheckoutSessionCreateResponse": {
+        "type": "object",
+        "required": ["id", "path", "url", "expires_at", "metadata"],
+        "properties": {
+          "id": {"type": "string"},
+          "path": {"type": "string"},
+          "url": {"type": "string", "format": "uri"},
+          "expires_at": {"type": "string", "format": "date-time"},
+          "metadata": {"$ref": "#/components/schemas/Metadata"}
+        }
+      },
+      "ChargeCreateResponse": {
+        "type": "object",
+        "required": ["id", "status", "metadata"],
+        "properties": {
+          "id": {"type": "string"},
+          "status": {"type": "string", "enum": ["queued"]},
+          "metadata": {"$ref": "#/components/schemas/Metadata"}
+        }
+      },
+      "SubscriptionCreateResponse": {
+        "type": "object",
+        "required": ["id", "status", "start_at", "metadata"],
+        "properties": {
+          "id": {"type": "string"},
+          "status": {"type": "string", "enum": ["active"]},
+          "start_at": {"type": "string", "format": "date-time"},
+          "metadata": {"$ref": "#/components/schemas/Metadata"}
+        }
+      },
+      "SubscriptionResource": {
+        "type": "object",
+        "description": "Authenticated subscription row. Metadata is always an object; pending_scheduled_change is present as an object or null.",
+        "required": ["metadata", "pending_scheduled_change"],
+        "additionalProperties": true,
+        "properties": {
+          "metadata": {"$ref": "#/components/schemas/Metadata"},
+          "pending_scheduled_change": {"$ref": "#/components/schemas/PendingScheduledPlanChange"}
         }
       },
       "BrandingInput": {
@@ -6041,6 +6483,9 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 365
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
           }
         },
         "required": [
@@ -6062,6 +6507,9 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 200
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
           }
         },
         "required": [
@@ -6563,6 +7011,117 @@
             "minimum": 0,
             "maximum": 99999999,
             "description": "Optional maximum authorized payment in cents; use preview amount_due."
+          }
+        }
+      },
+      "ScheduledPlanChangeInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "plan_id"
+        ],
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
+          }
+        }
+      },
+      "ScheduledPlanChangeResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "change_id",
+          "status",
+          "effective_at"
+        ],
+        "properties": {
+          "change_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "scheduled"
+            ]
+          },
+          "effective_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ScheduledPlanChangeCancelResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Subscription ID"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "canceled"
+            ]
+          }
+        }
+      },
+      "PendingScheduledPlanChange": {
+        "type": "object",
+        "nullable": true,
+        "description": "Returned as pending_scheduled_change by GET /v1/subscriptions/{id} while status is scheduled or pending_payment.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source_plan_id": {
+            "type": "string"
+          },
+          "target_plan_id": {
+            "type": "string"
+          },
+          "effective_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "scheduled",
+              "pending_payment"
+            ]
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/Metadata"
+          },
+          "charge_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "charge_status": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payment_review_at": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
           }
         }
       },
