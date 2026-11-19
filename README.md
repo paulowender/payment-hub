@@ -194,7 +194,7 @@ Em Eventos recebidos, a captura temporária permite inspecionar cabeçalhos e o 
 
 ## Checkout com a marca do projeto
 
-Acesse **Checkout e marca** no painel para configurar a identidade, cadastrar ofertas e gerar links de compra. Cartão Pagar.me, cobranças avulsas, assinaturas e créditos; chave pública por projeto em **Conexões**. Consulte [integração e domínio próprio](docs/checkout.md).
+Acesse **Checkout e marca** no painel para configurar a identidade, cadastrar ofertas e gerar links de compra. Cartão Pagar.me, cobranças avulsas, assinaturas e créditos; chave pública por projeto em **Conexões**. `POST /v1/checkout-sessions` aceita o objeto opcional `buyer` (`name`, `email`, `document`, `phone`, `street`, `number`, `zip_code`, `city`, `state`) para pré-preencher os campos do comprador na página de checkout. Consulte [integração e domínio próprio](docs/checkout.md).
 
 ## Pagamentos e operação
 
