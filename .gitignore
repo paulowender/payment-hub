@@ -3,6 +3,6 @@ providers.json
 paymenthub
 *.zip
 coverage.out
-server
+/server
 .local/
 graphify-out/
