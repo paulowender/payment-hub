@@ -91,6 +91,7 @@ type checkoutSnapshot struct {
 	Settings    *CheckoutSettings     `json:"settings,omitempty"`
 	Branding    Branding              `json:"branding"`
 	Buyer       *checkoutBuyerPrefill `json:"buyer,omitempty"`
+	ReturnURL   string                `json:"return_url,omitempty"`
 	Name        string                `json:"name"`
 	Description string                `json:"description"`
 	Amount      int64                 `json:"amount"`
@@ -99,6 +100,18 @@ type checkoutSnapshot struct {
 	Plan        string                `json:"plan_id"`
 	Unit        string                `json:"interval_unit"`
 	Count       int                   `json:"interval_count"`
+}
+
+func sanitizeReturnURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || len(raw) > 500 {
+		return ""
+	}
+	u, e := url.Parse(raw)
+	if e != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil {
+		return ""
+	}
+	return u.String()
 }
 
 var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
@@ -191,6 +204,7 @@ func (a *API) checkoutMutate(r *http.Request, tx pgx.Tx, tenant, path string) (a
 			Customer  string                `json:"customer_id"`
 			Reference string                `json:"reference"`
 			Buyer     *checkoutBuyerPrefill `json:"buyer"`
+			ReturnURL string                `json:"return_url"`
 		}
 		if decode(r, &in) != nil || len(in.Reference) < 1 || len(in.Reference) > 200 {
 			return nil, errInvalid
@@ -228,6 +242,7 @@ func (a *API) checkoutMutate(r *http.Request, tx pgx.Tx, tenant, path string) (a
 		}
 		snap.Settings = &cfg
 		snap.Buyer = sanitizeBuyerPrefill(in.Buyer)
+		snap.ReturnURL = sanitizeReturnURL(in.ReturnURL)
 		snap.Branding, e = readBrand(ctx, tx, tenant)
 		if e != nil {
 			return nil, e
