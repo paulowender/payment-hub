@@ -94,6 +94,12 @@ func (w *Worker) schedule(ctx context.Context) error {
 		if d.tenant != tenant {
 			continue
 		}
+		// Re-read after locking: a schedule may have committed after the due-list snapshot.
+		var scheduled string
+		err = tx.QueryRow(ctx, `SELECT c.id,p.amount,p.currency,p.credits FROM scheduled_plan_changes c JOIN plans p ON p.tenant_id=c.tenant_id AND p.id=c.target_plan_id WHERE c.tenant_id=$1 AND c.subscription_id=$2 AND c.status='scheduled'`, d.tenant, d.id).Scan(&scheduled, &d.amount, &d.currency, &d.credits)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
 		used := d.billingCredit
 		if used > d.amount {
 			used = d.amount
@@ -107,6 +113,11 @@ func (w *Worker) schedule(ctx context.Context) error {
 		_, err = tx.Exec(ctx, `INSERT INTO charges(tenant_id,id,customer_id,provider,provider_customer,payment_method,amount,currency,credits,subscription_id,cycle,account_fingerprint) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`, d.tenant, id, d.customer, d.provider, d.providerCustomer, d.method, chargeAmount, d.currency, d.credits, d.id, d.cycle, d.fingerprint)
 		if err != nil {
 			return err
+		}
+		if scheduled != "" {
+			if _, err = tx.Exec(ctx, "UPDATE scheduled_plan_changes SET charge_id=$3,status='pending_payment',updated_at=now() WHERE tenant_id=$1 AND id=$2", d.tenant, scheduled, id); err != nil {
+				return err
+			}
 		}
 		if _, err = tx.Exec(ctx, "UPDATE charges SET billing_credit_used=$3 WHERE tenant_id=$1 AND id=$2", d.tenant, id, used); err != nil {
 			return err
@@ -142,7 +153,12 @@ func (w *Worker) schedule(ctx context.Context) error {
 		if due == 0 {
 			event = "charge.paid"
 		}
-		if err = emit(ctx, tx, d.tenant, event, map[string]any{"charge_id": id, "subscription_id": d.id, "customer_id": d.customer, "credits": d.credits, "status": map[bool]string{true: "paid", false: "queued"}[due == 0]}); err != nil {
+		if due == 0 && scheduled != "" {
+			if err = settleScheduledPlanChange(ctx, tx, d.tenant, id, "paid", "queued", false); err != nil {
+				return err
+			}
+		}
+		if err = emitFinancialEvent(ctx, tx, d.tenant, event, id, nil); err != nil {
 			return err
 		}
 
@@ -219,12 +235,15 @@ func (w *Worker) retry(ctx context.Context, c Charge, message string, manual boo
 			if _, err = tx.Exec(ctx, "UPDATE subscriptions SET status='past_due' WHERE tenant_id=$1 AND id=$2 AND status<>'canceled'", c.Tenant, subscription); err != nil {
 				return err
 			}
-			if err = emit(ctx, tx, c.Tenant, "subscription.change_review", map[string]string{"charge_id": c.ID, "reason": message}); err != nil {
+			if err = emitSubscriptionEvent(ctx, tx, c.Tenant, "subscription.change_review", subscription, map[string]any{"charge_id": c.ID, "reason": message}); err != nil {
 				return err
 			}
 		}
 
-		if err = emit(ctx, tx, c.Tenant, "charge.manual_review", map[string]string{"charge_id": c.ID, "reason": message}); err != nil {
+		if err = settleScheduledPlanChange(ctx, tx, c.Tenant, c.ID, "manual_review", c.Status, false); err != nil {
+			return err
+		}
+		if err = emitFinancialEvent(ctx, tx, c.Tenant, "charge.manual_review", c.ID, map[string]any{"reason": message}); err != nil {
 			return err
 		}
 	}
@@ -242,17 +261,23 @@ func (w *Worker) apply(ctx context.Context, c Charge, p Payment) error {
 	}
 	var credited, reversed bool
 	var previous string
-	err = tx.QueryRow(ctx, "SELECT status,credited,reversed FROM charges WHERE tenant_id=$1 AND id=$2 AND lease_token=$3 FOR UPDATE", c.Tenant, c.ID, c.Lease).Scan(&previous, &credited, &reversed)
+	var subscriptionID string
+	err = tx.QueryRow(ctx, "SELECT status,credited,reversed,COALESCE(subscription_id,'') FROM charges WHERE tenant_id=$1 AND id=$2 AND lease_token=$3 FOR UPDATE", c.Tenant, c.ID, c.Lease).Scan(&previous, &credited, &reversed, &subscriptionID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
+	var scheduledIneligible, scheduledReviewed bool
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM scheduled_plan_changes sc JOIN subscriptions s ON s.tenant_id=sc.tenant_id AND s.id=sc.subscription_id WHERE sc.tenant_id=$1 AND sc.charge_id=$2 AND (sc.status='canceled' OR s.status='canceled' OR s.paused_at IS NOT NULL OR sc.payment_review_at IS NOT NULL)),EXISTS(SELECT 1 FROM scheduled_plan_changes WHERE tenant_id=$1 AND charge_id=$2 AND payment_review_at IS NOT NULL)`, c.Tenant, c.ID).Scan(&scheduledIneligible, &scheduledReviewed); err != nil {
+		return err
+	}
+	previouslyCredited := credited
 	// A late pending response must never undo a confirmed payment or a reversal.
 	if reversed {
 		p.Status = "reversed"
-	} else if credited && p.Status != "reversed" {
+	} else if (credited || scheduledReviewed) && p.Status != "reversed" {
 		if p.Status == "failed" {
 			p.Detail = strings.Replace(p.Detail, "payment_declined", "subsequent_operation_failed", 1)
 			if p.Detail == "" {
@@ -291,7 +316,7 @@ func (w *Worker) apply(ctx context.Context, c Charge, p Payment) error {
 			if err = applyPlanChange(ctx, tx, c.Tenant, changeID); err != nil {
 				return err
 			}
-			if err = emit(ctx, tx, c.Tenant, "subscription.change_applied", map[string]string{"change_id": changeID, "charge_id": c.ID}); err != nil {
+			if err = emitSubscriptionEvent(ctx, tx, c.Tenant, "subscription.change_applied", subscriptionID, map[string]any{"change_id": changeID, "charge_id": c.ID}); err != nil {
 				return err
 			}
 		}
@@ -307,7 +332,7 @@ func (w *Worker) apply(ctx context.Context, c Charge, p Payment) error {
 			if _, err = tx.Exec(ctx, "UPDATE subscriptions SET status='past_due' WHERE tenant_id=$1 AND id=(SELECT subscription_id FROM subscription_changes WHERE tenant_id=$1 AND id=$2) AND status<>'canceled'", c.Tenant, changeID); err != nil {
 				return err
 			}
-			if err = emit(ctx, tx, c.Tenant, "subscription.change_review", map[string]string{"change_id": changeID, "charge_id": c.ID}); err != nil {
+			if err = emitSubscriptionEvent(ctx, tx, c.Tenant, "subscription.change_review", subscriptionID, map[string]any{"change_id": changeID, "charge_id": c.ID}); err != nil {
 				return err
 			}
 		}
@@ -317,7 +342,7 @@ func (w *Worker) apply(ctx context.Context, c Charge, p Payment) error {
 			return err
 		}
 	}
-	if p.Status == "paid" && !credited {
+	if p.Status == "paid" && !credited && !scheduledIneligible {
 		if c.Credits > 0 {
 			if _, err = changeWallet(ctx, tx, c.Tenant, c.Customer, c.Credits, "payment", c.ID, false); err != nil {
 				return err
@@ -358,7 +383,7 @@ func (w *Worker) apply(ctx context.Context, c Charge, p Payment) error {
 			return err
 		}
 		if used > 0 {
-			if err = emit(ctx, tx, c.Tenant, "subscription.billing_credit_review", map[string]any{"charge_id": c.ID, "billing_credit_used": used}); err != nil {
+			if err = emitSubscriptionEvent(ctx, tx, c.Tenant, "subscription.billing_credit_review", subscriptionID, map[string]any{"charge_id": c.ID, "billing_credit_used": used}); err != nil {
 				return err
 			}
 		}
@@ -380,11 +405,14 @@ func (w *Worker) apply(ctx context.Context, c Charge, p Payment) error {
 	if err != nil {
 		return err
 	}
+	if err = settleScheduledPlanChange(ctx, tx, c.Tenant, c.ID, p.Status, previous, previouslyCredited); err != nil {
+		return err
+	}
 	if err = recordChargeHistory(ctx, tx, c, attemptKind(c), p.Status, p.Detail); err != nil {
 		return err
 	}
 	if p.Status != previous {
-		if err = emit(ctx, tx, c.Tenant, "charge."+p.Status, map[string]any{"charge_id": c.ID, "customer_id": c.Customer, "status": p.Status, "credits": c.Credits, "reason": p.Detail}); err != nil {
+		if err = emitFinancialEvent(ctx, tx, c.Tenant, "charge."+p.Status, c.ID, map[string]any{"reason": p.Detail}); err != nil {
 			return err
 		}
 	}

@@ -2,6 +2,7 @@ package hub
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"math/big"
 	"net/http"
@@ -47,9 +48,42 @@ func (a *API) lifecycle(r *http.Request, tx pgx.Tx, tenant, id, action string) (
 	if pending {
 		return nil, errConflict
 	}
+	var scheduled, linked bool
+	if err = tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM scheduled_plan_changes WHERE tenant_id=$1 AND subscription_id=$2 AND status IN ('scheduled','pending_payment')),EXISTS(SELECT 1 FROM scheduled_plan_changes WHERE tenant_id=$1 AND subscription_id=$2 AND status='pending_payment')", tenant, id).Scan(&scheduled, &linked); err != nil {
+		return nil, err
+	}
+	if action == "schedule-cancel" {
+		var in struct{}
+		if decode(r, &in) != nil {
+			return nil, errInvalid
+		}
+		if !scheduled || linked {
+			return nil, errConflict
+		}
+		if err = cancelScheduledPlanChange(ctx, tx, tenant, id); err != nil {
+			return nil, err
+		}
+		return map[string]any{"id": id, "status": "canceled"}, nil
+	}
+	if scheduled && (action != "pause" && action != "resume" && action != "cancel" || linked && action != "cancel") {
+		return nil, errConflict
+	}
 	var now time.Time
 	if err = tx.QueryRow(ctx, "SELECT clock_timestamp()").Scan(&now); err != nil {
 		return nil, err
+	}
+	if action == "reactivate" {
+		var in struct{}
+		if decode(r, &in) != nil {
+			return nil, errInvalid
+		}
+		if status != "canceled" || !next.After(now) || method == "" {
+			return nil, errConflict
+		}
+		if _, err = tx.Exec(ctx, "UPDATE subscriptions SET status='active' WHERE tenant_id=$1 AND id=$2", tenant, id); err != nil {
+			return nil, err
+		}
+		return map[string]any{"id": id, "status": "active", "next_at": next}, emitSubscriptionEvent(ctx, tx, tenant, "subscription.reactivated", id, nil)
 	}
 	if action == "pause" || action == "resume" || action == "cancel" {
 		var in struct{}
@@ -77,14 +111,36 @@ func (a *API) lifecycle(r *http.Request, tx pgx.Tx, tenant, id, action string) (
 		if err != nil {
 			return nil, err
 		}
+		if action == "cancel" {
+			if err = cancelScheduledPlanChange(ctx, tx, tenant, id); err != nil {
+				return nil, err
+			}
+		} else if action == "resume" {
+			if _, err = tx.Exec(ctx, "UPDATE scheduled_plan_changes SET effective_at=(SELECT next_at FROM subscriptions WHERE tenant_id=$1 AND id=$2),updated_at=now() WHERE tenant_id=$1 AND subscription_id=$2 AND status='scheduled'", tenant, id); err != nil {
+				return nil, err
+			}
+		}
 		event := map[string]string{"pause": "subscription.paused", "resume": "subscription.resumed", "cancel": "subscription.canceled"}[action]
-		return map[string]any{"id": id, "status": status, "paused": action == "pause"}, emit(ctx, tx, tenant, event, map[string]string{"subscription_id": id})
+		return map[string]any{"id": id, "status": status, "paused": action == "pause"}, emitSubscriptionEvent(ctx, tx, tenant, event, id, nil)
 	}
 	var in struct {
 		Plan      string `json:"plan_id"`
 		MaxAmount *int64 `json:"max_amount"`
 	}
-	if decode(r, &in) != nil || in.Plan == "" {
+	var metadata json.RawMessage
+	if action == "schedule" {
+		var schedule struct {
+			Plan     string          `json:"plan_id"`
+			Metadata json.RawMessage `json:"metadata"`
+		}
+		if decode(r, &schedule) != nil || schedule.Plan == "" {
+			return nil, errInvalid
+		}
+		if _, err = decodeMetadata(schedule.Metadata); err != nil {
+			return nil, err
+		}
+		in.Plan, metadata = schedule.Plan, schedule.Metadata
+	} else if decode(r, &in) != nil || in.Plan == "" {
 		return nil, errInvalid
 	}
 	if status != "active" || paused != nil || cycle < 1 || !next.After(now) || in.Plan == oldPlan {
@@ -109,6 +165,14 @@ func (a *API) lifecycle(r *http.Request, tx pgx.Tx, tenant, id, action string) (
 	}
 	if currency != newCurrency {
 		return nil, errInvalid
+	}
+	if action == "schedule" {
+		change := token()
+		_, err = tx.Exec(ctx, `INSERT INTO scheduled_plan_changes(tenant_id,id,subscription_id,source_plan_id,target_plan_id,effective_at,status,metadata) VALUES($1,$2,$3,$4,$5,$6,'scheduled',COALESCE($7::jsonb,'{}'::jsonb))`, tenant, change, id, oldPlan, in.Plan, next, metadata)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"change_id": change, "status": "scheduled", "effective_at": next}, emitScheduledPlanEvent(ctx, tx, tenant, change, "subscription.change_scheduled", "")
 	}
 	start := cycleAt(anchor, unit, count, cycle-1-epoch)
 	unused := prorated(amount, next.Sub(now), next.Sub(start), false)
@@ -147,7 +211,11 @@ func (a *API) lifecycle(r *http.Request, tx pgx.Tx, tenant, id, action string) (
 			return nil, err
 		}
 	}
-	return map[string]any{"change_id": change, "charge_id": charge, "status": state}, emit(ctx, tx, tenant, "subscription.change_"+state, map[string]string{"subscription_id": id, "change_id": change})
+	data := map[string]any{"change_id": change}
+	if charge != "" {
+		data["charge_id"] = charge
+	}
+	return map[string]any{"change_id": change, "charge_id": charge, "status": state}, emitSubscriptionEvent(ctx, tx, tenant, "subscription.change_"+state, id, data)
 }
 
 func applyPlanChange(ctx context.Context, tx pgx.Tx, tenant, change string) error {
@@ -204,4 +272,76 @@ func reversePlanUsage(ctx context.Context, tx pgx.Tx, tenant, customer, change s
 	}
 	_, err = changeWallet(ctx, tx, tenant, customer, -delta, "reversal", "plan-change:"+change, false)
 	return err
+}
+
+// The caller holds the subscription lock, including cancellation from the buyer portal.
+func cancelScheduledPlanChange(ctx context.Context, tx pgx.Tx, tenant, subscription string) error {
+	var change string
+	err := tx.QueryRow(ctx, "UPDATE scheduled_plan_changes SET status='canceled',updated_at=now() WHERE tenant_id=$1 AND subscription_id=$2 AND status IN ('scheduled','pending_payment') RETURNING id", tenant, subscription).Scan(&change)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return emitScheduledPlanEvent(ctx, tx, tenant, change, "subscription.change_schedule_canceled", "")
+}
+
+func emitScheduledPlanEvent(ctx context.Context, tx pgx.Tx, tenant, change, kind, reason string) error {
+	var subscription string
+	var raw []byte
+	err := tx.QueryRow(ctx, `SELECT s.subscription_id,jsonb_build_object('change_id',s.id,'source_plan_id',s.source_plan_id,'target_plan_id',s.target_plan_id,'effective_at',s.effective_at,'scheduled_change_status',s.status,'scheduled_change_metadata',s.metadata,'charge_id',s.charge_id,'charge_status',c.status,'payment_review_at',s.payment_review_at) FROM scheduled_plan_changes s LEFT JOIN charges c ON c.tenant_id=s.tenant_id AND c.id=s.charge_id WHERE s.tenant_id=$1 AND s.id=$2`, tenant, change).Scan(&subscription, &raw)
+	if err != nil {
+		return err
+	}
+	data, err := decodeEventData(raw)
+	if err != nil {
+		return err
+	}
+	if reason != "" {
+		data["reason"] = reason
+	}
+	return emitSubscriptionEvent(ctx, tx, tenant, kind, subscription, data)
+}
+
+// Confirm the linked renewal without restarting its calendar at late settlement.
+func settleScheduledPlanChange(ctx context.Context, tx pgx.Tx, tenant, charge, status, previous string, credited bool) error {
+	var change, state, subscription, subscriptionStatus, plan, unit string
+	var effective time.Time
+	var paused, reviewed *time.Time
+	var count, cycle int
+	err := tx.QueryRow(ctx, `SELECT c.id,c.status,c.subscription_id,s.status,s.paused_at,c.target_plan_id,c.effective_at,p.interval_unit,p.interval_count,ch.cycle,c.payment_review_at FROM scheduled_plan_changes c JOIN subscriptions s ON s.tenant_id=c.tenant_id AND s.id=c.subscription_id JOIN plans p ON p.tenant_id=c.tenant_id AND p.id=c.target_plan_id JOIN charges ch ON ch.tenant_id=c.tenant_id AND ch.id=c.charge_id WHERE c.tenant_id=$1 AND c.charge_id=$2 FOR UPDATE OF c`, tenant, charge).Scan(&change, &state, &subscription, &subscriptionStatus, &paused, &plan, &effective, &unit, &count, &cycle, &reviewed)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	effective = effective.UTC()
+	if status == "paid" && !credited && state != "applied" {
+		if reviewed != nil {
+			return nil
+		}
+		if state == "canceled" || subscriptionStatus == "canceled" || paused != nil {
+			if _, err = tx.Exec(ctx, "UPDATE scheduled_plan_changes SET payment_review_at=now(),updated_at=now() WHERE tenant_id=$1 AND id=$2", tenant, change); err != nil {
+				return err
+			}
+			return emitScheduledPlanEvent(ctx, tx, tenant, change, "subscription.change_schedule_failed", "subscription_not_eligible")
+		}
+		nextCycle := cycle + 1
+		for !cycleAt(effective, unit, count, nextCycle-cycle).After(time.Now().UTC()) {
+			nextCycle++
+		}
+		if _, err = tx.Exec(ctx, "UPDATE subscriptions SET plan_id=$3,status='active',anchor=$4,next_at=$5,billing_epoch=$6,cycle=$7 WHERE tenant_id=$1 AND id=$2", tenant, subscription, plan, effective, cycleAt(effective, unit, count, nextCycle-cycle), cycle, nextCycle); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(ctx, "UPDATE scheduled_plan_changes SET status='applied',updated_at=now() WHERE tenant_id=$1 AND id=$2", tenant, change); err != nil {
+			return err
+		}
+		return emitScheduledPlanEvent(ctx, tx, tenant, change, "subscription.change_schedule_applied", "")
+	}
+	if status != previous && (status == "failed" || status == "manual_review" || status == "reversed") {
+		return emitScheduledPlanEvent(ctx, tx, tenant, change, "subscription.change_schedule_failed", status)
+	}
+	return nil
 }

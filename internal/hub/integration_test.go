@@ -222,12 +222,16 @@ func TestPostgresSubscriptionConcurrentSchedulingAndCancel(t *testing.T) {
 	accounts := Accounts{tenant: {"stripe": {Secret: "sk_test"}}}
 	h := (&API{Store: s, Accounts: accounts}).Handler()
 	out := request(t, h, "POST", "/v1/plans", key, "plan", `{"name":"Pro","amount":1990,"currency":"brl","credits":500,"interval_unit":"month","interval_count":1}`)
-	var p map[string]string
-	json.Unmarshal(out.Body.Bytes(), &p)
+	var p struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(out.Body.Bytes(), &p); err != nil {
+		t.Fatal(err)
+	}
 	if out.Code != 200 {
 		t.Fatal(out.Body)
 	}
-	out = request(t, h, "POST", "/v1/subscriptions", key, "subscribe", fmt.Sprintf(`{"customer_id":%q,"plan_id":%q,"provider":"stripe","provider_customer":"cus_x","payment_method":"pm_x"}`, customer, p["id"]))
+	out = request(t, h, "POST", "/v1/subscriptions", key, "subscribe", fmt.Sprintf(`{"customer_id":%q,"plan_id":%q,"provider":"stripe","provider_customer":"cus_x","payment_method":"pm_x"}`, customer, p.ID))
 	if out.Code != 200 {
 		t.Fatal(out.Body)
 	}
@@ -340,9 +344,13 @@ func TestPostgresNoCatchupAvalanche(t *testing.T) {
 	accounts := Accounts{tenant: {"stripe": {Secret: "sk_test"}}}
 	h := (&API{Store: s, Accounts: accounts}).Handler()
 	out := request(t, h, "POST", "/v1/plans", key, "p", `{"name":"Daily","amount":100,"currency":"brl","credits":5,"interval_unit":"day","interval_count":1}`)
-	var p map[string]string
-	json.Unmarshal(out.Body.Bytes(), &p)
-	out = request(t, h, "POST", "/v1/subscriptions", key, "s", fmt.Sprintf(`{"customer_id":%q,"plan_id":%q,"provider":"stripe","provider_customer":"cus","payment_method":"pm"}`, customer, p["id"]))
+	var p struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(out.Body.Bytes(), &p); err != nil {
+		t.Fatal(err)
+	}
+	out = request(t, h, "POST", "/v1/subscriptions", key, "s", fmt.Sprintf(`{"customer_id":%q,"plan_id":%q,"provider":"stripe","provider_customer":"cus","payment_method":"pm"}`, customer, p.ID))
 	if out.Code != 200 {
 		t.Fatal(out.Body)
 	}

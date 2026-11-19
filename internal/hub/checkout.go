@@ -24,17 +24,96 @@ type Branding struct {
 	Primary         string `json:"primary_color"`
 	Background      string `json:"background_color"`
 }
+type checkoutBuyerPrefill struct {
+	Name     string `json:"name,omitempty"`
+	Email    string `json:"email,omitempty"`
+	Document string `json:"document,omitempty"`
+	Phone    string `json:"phone,omitempty"`
+	Street   string `json:"street,omitempty"`
+	Number   string `json:"number,omitempty"`
+	Zip      string `json:"zip_code,omitempty"`
+	City     string `json:"city,omitempty"`
+	State    string `json:"state,omitempty"`
+}
+
+func sanitizeBuyerPrefill(in *checkoutBuyerPrefill) *checkoutBuyerPrefill {
+	if in == nil {
+		return nil
+	}
+	cleanText := func(s string, max int) string {
+		s = strings.TrimSpace(s)
+		if len(s) > max {
+			s = s[:max]
+		}
+		return s
+	}
+	onlyDigits := func(s string, max int) string {
+		var b strings.Builder
+		for _, r := range s {
+			if r >= '0' && r <= '9' {
+				b.WriteRune(r)
+			}
+		}
+		out := b.String()
+		if len(out) > max {
+			out = out[:max]
+		}
+		return out
+	}
+	phone := onlyDigits(in.Phone, 13)
+	if strings.HasPrefix(phone, "55") && (len(phone) == 12 || len(phone) == 13) {
+		phone = phone[2:]
+	} else if len(phone) > 11 {
+		phone = phone[:11]
+	}
+	state := strings.ToUpper(cleanText(in.State, 2))
+	if !regexp.MustCompile(`^[A-Z]{2}$`).MatchString(state) {
+		state = ""
+	}
+	out := checkoutBuyerPrefill{
+		Name:     cleanText(in.Name, 100),
+		Email:    cleanText(in.Email, 200),
+		Document: onlyDigits(in.Document, 14),
+		Phone:    phone,
+		Street:   cleanText(in.Street, 150),
+		Number:   cleanText(in.Number, 20),
+		Zip:      onlyDigits(in.Zip, 8),
+		City:     cleanText(in.City, 100),
+		State:    state,
+	}
+	if out == (checkoutBuyerPrefill{}) {
+		return nil
+	}
+	return &out
+}
+
 type checkoutSnapshot struct {
-	Settings    *CheckoutSettings `json:"settings,omitempty"`
-	Branding    Branding          `json:"branding"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Amount      int64             `json:"amount"`
-	Currency    string            `json:"currency"`
-	Credits     int64             `json:"credits"`
-	Plan        string            `json:"plan_id"`
-	Unit        string            `json:"interval_unit"`
-	Count       int               `json:"interval_count"`
+	Settings       *CheckoutSettings     `json:"settings,omitempty"`
+	Branding       Branding              `json:"branding"`
+	Buyer          *checkoutBuyerPrefill `json:"buyer,omitempty"`
+	ReturnURL      string                `json:"return_url,omitempty"`
+	Name           string                `json:"name"`
+	Description    string                `json:"description"`
+	Amount         int64                 `json:"amount"`
+	OriginalAmount int64                 `json:"original_amount,omitempty"`
+	DiscountAmount int64                 `json:"discount_amount,omitempty"`
+	Currency       string                `json:"currency"`
+	Credits        int64                 `json:"credits"`
+	Plan           string                `json:"plan_id"`
+	Unit           string                `json:"interval_unit"`
+	Count          int                   `json:"interval_count"`
+}
+
+func sanitizeReturnURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || len(raw) > 500 {
+		return ""
+	}
+	u, e := url.Parse(raw)
+	if e != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil {
+		return ""
+	}
+	return u.String()
 }
 
 var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
@@ -83,17 +162,22 @@ func (a *API) checkoutMutate(r *http.Request, tx pgx.Tx, tenant, path string) (a
 		return b, e
 	case "v1/offers":
 		var in struct {
-			Name        string `json:"name"`
-			Description string `json:"description"`
-			Amount      int64  `json:"amount"`
-			Currency    string `json:"currency"`
-			Credits     int64  `json:"credits"`
-			Plan        string `json:"plan_id"`
-			Unit        string `json:"interval_unit"`
-			Count       int    `json:"interval_count"`
+			Metadata    json.RawMessage `json:"metadata"`
+			Name        string          `json:"name"`
+			Description string          `json:"description"`
+			Amount      int64           `json:"amount"`
+			Currency    string          `json:"currency"`
+			Credits     int64           `json:"credits"`
+			Plan        string          `json:"plan_id"`
+			Unit        string          `json:"interval_unit"`
+			Count       int             `json:"interval_count"`
 		}
 		if decode(r, &in) != nil || len(strings.TrimSpace(in.Name)) < 1 || len(in.Name) > 200 || len(in.Description) > 1000 {
 			return nil, errInvalid
+		}
+		metadata, err := decodeMetadata(in.Metadata)
+		if err != nil {
+			return nil, err
 		}
 		if in.Plan == "" && in.Unit != "" {
 			if !validInterval(in.Unit, in.Count) || !validAmount(in.Amount) || !validCredits(in.Credits) || in.Currency != "brl" {
@@ -113,16 +197,24 @@ func (a *API) checkoutMutate(r *http.Request, tx pgx.Tx, tenant, path string) (a
 			return nil, errInvalid
 		}
 		id := token()
-		_, e := tx.Exec(ctx, `INSERT INTO offers(tenant_id,id,name,description,amount,currency,credits,plan_id) VALUES($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''))`, tenant, id, in.Name, in.Description, in.Amount, in.Currency, in.Credits, in.Plan)
-		return map[string]string{"id": id}, e
+		_, e := tx.Exec(ctx, `INSERT INTO offers(tenant_id,id,name,description,amount,currency,credits,plan_id,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),COALESCE($9::jsonb,'{}'::jsonb))`, tenant, id, in.Name, in.Description, in.Amount, in.Currency, in.Credits, in.Plan, in.Metadata)
+		return map[string]any{"id": id, "plan_id": in.Plan, "metadata": metadata}, e
 	case "v1/checkout-sessions":
 		var in struct {
-			Offer     string `json:"offer_id"`
-			Customer  string `json:"customer_id"`
-			Reference string `json:"reference"`
+			Metadata       json.RawMessage       `json:"metadata"`
+			Offer          string                `json:"offer_id"`
+			Customer       string                `json:"customer_id"`
+			Reference      string                `json:"reference"`
+			Buyer          *checkoutBuyerPrefill `json:"buyer"`
+			ReturnURL      string                `json:"return_url"`
+			DiscountAmount int64                 `json:"discount_amount"`
 		}
-		if decode(r, &in) != nil || len(in.Reference) < 1 || len(in.Reference) > 200 {
+		if decode(r, &in) != nil || len(in.Reference) < 1 || len(in.Reference) > 200 || in.DiscountAmount < 0 {
 			return nil, errInvalid
+		}
+		metadata, err := decodeMetadata(in.Metadata)
+		if err != nil {
+			return nil, err
 		}
 		var snap checkoutSnapshot
 		e := tx.QueryRow(ctx, `SELECT o.name,o.description,o.amount,o.currency,o.credits,COALESCE(o.plan_id,''),COALESCE(p.interval_unit,''),COALESCE(p.interval_count,0) FROM offers o LEFT JOIN plans p ON p.tenant_id=o.tenant_id AND p.id=o.plan_id WHERE o.tenant_id=$1 AND o.id=$2 AND o.active`, tenant, in.Offer).Scan(&snap.Name, &snap.Description, &snap.Amount, &snap.Currency, &snap.Credits, &snap.Plan, &snap.Unit, &snap.Count)
@@ -152,6 +244,17 @@ func (a *API) checkoutMutate(r *http.Request, tx pgx.Tx, tenant, path string) (a
 			return nil, errInvalid
 		}
 		snap.Settings = &cfg
+		if in.DiscountAmount > 0 {
+			snap.OriginalAmount = snap.Amount
+			finalAmount := snap.Amount - in.DiscountAmount
+			if finalAmount < 100 {
+				finalAmount = 100
+			}
+			snap.DiscountAmount = snap.Amount - finalAmount
+			snap.Amount = finalAmount
+		}
+		snap.Buyer = sanitizeBuyerPrefill(in.Buyer)
+		snap.ReturnURL = sanitizeReturnURL(in.ReturnURL)
 		snap.Branding, e = readBrand(ctx, tx, tenant)
 		if e != nil {
 			return nil, e
@@ -162,8 +265,8 @@ func (a *API) checkoutMutate(r *http.Request, tx pgx.Tx, tenant, path string) (a
 		}
 		id := token()
 		var expires time.Time
-		e = tx.QueryRow(ctx, `INSERT INTO checkout_sessions(tenant_id,id,offer_id,customer_id,reference,snapshot,account_fingerprint) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING expires_at`, tenant, id, in.Offer, in.Customer, in.Reference, b, hash(ac.Secret)).Scan(&expires)
-		return map[string]any{"id": id, "path": "/checkout/" + id, "expires_at": expires, "url": strings.TrimRight(checkoutBase(snap.Branding.CheckoutBaseURL, a.PublicWebhookBaseURL), "/") + "/checkout/" + id}, e
+		e = tx.QueryRow(ctx, `INSERT INTO checkout_sessions(tenant_id,id,offer_id,customer_id,reference,snapshot,account_fingerprint,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,COALESCE($8::jsonb,'{}'::jsonb)) RETURNING expires_at`, tenant, id, in.Offer, in.Customer, in.Reference, b, hash(ac.Secret), in.Metadata).Scan(&expires)
+		return map[string]any{"metadata": metadata, "id": id, "path": "/checkout/" + id, "expires_at": expires, "url": strings.TrimRight(checkoutBase(snap.Branding.CheckoutBaseURL, a.PublicWebhookBaseURL), "/") + "/checkout/" + id}, e
 	}
 	return nil, errNotFound
 }
@@ -392,13 +495,13 @@ func (a *API) checkoutPay(w http.ResponseWriter, r *http.Request) {
 		_, e = tx.Exec(ctx, "UPDATE checkout_sessions SET charge_id=$2,subscription_id=$3,consent_at=CASE WHEN $3::text IS NOT NULL THEN now() ELSE NULL END WHERE id=$1", sid, charge, sub)
 	}
 	if e == nil {
-		e = emit(ctx, tx, tenant, "checkout.submitted", map[string]any{"session_id": sid, "charge_id": charge, "subscription_id": sub})
+		e = emitFinancialEvent(ctx, tx, tenant, "checkout.submitted", charge, nil)
 	}
 	if e == nil {
-		e = emit(ctx, tx, tenant, "charge.queued", map[string]string{"charge_id": charge})
+		e = emitFinancialEvent(ctx, tx, tenant, "charge.queued", charge, nil)
 	}
 	if e == nil && sub != nil {
-		e = emit(ctx, tx, tenant, "subscription.created", map[string]any{"subscription_id": sub})
+		e = emitSubscriptionEvent(ctx, tx, tenant, "subscription.created", sub.(string), nil)
 	}
 	if e == nil {
 		e = tx.Commit(ctx)

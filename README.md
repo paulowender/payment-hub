@@ -131,15 +131,23 @@ Sucesso das escritas de negócio retorna 200, provisionamento retorna 201. Erros
 
 Contrato importável em ferramentas de API: [docs/openapi.json](docs/openapi.json).
 
+### Metadata e integração com a Prontei
+
+Clientes, planos, ofertas, sessões de checkout, assinaturas e cobranças aceitam `metadata`: um objeto JSON opcional de até 8192 bytes. O Hub guarda essa metadata de forma opaca, isolada por projeto, e a devolve nas criações, consultas, listagens e eventos aplicáveis. Não envie segredos, dados de cartão ou tokens. Metadata serve para correlação; nunca comprova pagamento nem autoriza acesso.
+
+`POST /v1/offers` devolve `id` (oferta), `plan_id` (plano recorrente, vazio em compra avulsa) e `metadata`. Para migrações na renovação existem `POST /v1/subscriptions/{id}/change-plan/schedule` e `/schedule/cancel`; o plano atual permanece vigente até a cobrança da renovação no plano destino ser confirmada. Consulte [integração Prontei](docs/prontei-integration.md) para chaves idempotentes, payloads, eventos e reconciliação.
+
 ### Eventos, confirmação e autenticação adicional
 
 Consuma `/v1/events?after=ULTIMO_ID`, processe cada evento, depois persista o último ID concluído. Os eventos são duráveis e a publicação dentro de cada projeto respeita a ordem de commit. Retente seus próprios efeitos com deduplicação pelo ID. Não avance o cursor antes de concluir o processamento.
 
-Eventos de cobrança: `charge.queued`, `charge.pending`, `charge.requires_action`, `charge.paid`, `charge.failed`, `charge.reversed`, `charge.manual_review`. Existem também `subscription.created`, `subscription.canceled`, `wallet.grant` e `wallet.consume`. Eventos de cobrança incluem `charge_id`; os eventos de confirmação incluem cliente, estado e quantidade de créditos vinculada à cobrança. Isso não é o saldo atual; consulte a carteira. A ausência de um evento intermediário não significa erro: pagamento síncrono pode ir de queued diretamente para paid.
+Eventos de cobrança: `charge.queued`, `charge.pending`, `charge.requires_action`, `charge.paid`, `charge.failed`, `charge.reversed`, `charge.manual_review`. Existem também eventos de assinatura, inclusive criação, pausa, cancelamento, troca imediata e troca agendada. Eventos financeiros e de assinatura incluem identificadores correlacionáveis e metadata por recurso (`charge_metadata`, `customer_metadata`, `subscription_metadata`, `plan_metadata`, `checkout_session_metadata` e `offer_metadata`) quando o recurso é aplicável. Eles não incluem credenciais do provedor, meio de pagamento ou snapshot do comprador. Veja [notificações](docs/notifications.md).
+
+`subscription.created` confirma somente a criação do contrato local; não comprova pagamento. Ative acesso apenas após `charge.paid` persistido e validado, ou após reconciliação autenticada que confirme o mesmo estado. Créditos no evento pertencem à cobrança, não representam o saldo atual; consulte a carteira. A ausência de um evento intermediário não significa erro: pagamento síncrono pode ir de `queued` diretamente para `paid`.
 
 Quando Stripe exigir autenticação adicional, consulte a cobrança autenticada para obter `client_secret` e conclua o fluxo pelo SDK do Stripe no SaaS. Nunca exponha a chave da API do Hub para isso. A versão inicial exige esse fluxo no produto integrador e autorização prévia para pagamentos off-session.
 
-A reconciliação consulta o provedor a cada 30s em pagamentos pendentes e a cada 6h nos pagos. Esta versão recebe webhooks autenticados do Pagar.me e não envia notificações para URLs de terceiros; os SaaS consomem o feed de eventos. Portanto, a atualização é eventual. O worker processa um lote limitado de dez operações por passagem; dimensione instâncias de acordo com a latência e o volume.
+A reconciliação consulta o provedor a cada 30s em pagamentos pendentes e a cada 6h nos pagos. Esta versão recebe webhooks autenticados do Pagar.me, entrega notificações HMAC configuradas por projeto e mantém o feed de eventos como fallback e fonte de reconciliação. Portanto, a atualização é eventual. O worker processa um lote limitado de dez operações por passagem; dimensione instâncias de acordo com a latência e o volume.
 
 ## Executar e testar sem Docker da aplicação
 
@@ -186,7 +194,7 @@ Em Eventos recebidos, a captura temporária permite inspecionar cabeçalhos e o 
 
 ## Checkout com a marca do projeto
 
-Acesse **Checkout e marca** no painel para configurar a identidade, cadastrar ofertas e gerar links de compra. Cartão Pagar.me, cobranças avulsas, assinaturas e créditos; chave pública por projeto em **Conexões**. Consulte [integração e domínio próprio](docs/checkout.md).
+Acesse **Checkout e marca** no painel para configurar a identidade, cadastrar ofertas e gerar links de compra. Cartão Pagar.me, cobranças avulsas, assinaturas e créditos; chave pública por projeto em **Conexões**. `POST /v1/checkout-sessions` aceita o objeto opcional `buyer` (`name`, `email`, `document`, `phone`, `street`, `number`, `zip_code`, `city`, `state`) para pré-preencher os campos do comprador na página de checkout. Consulte [integração e domínio próprio](docs/checkout.md).
 
 ## Pagamentos e operação
 

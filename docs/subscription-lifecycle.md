@@ -47,3 +47,28 @@ Renovações totalmente cobertas por crédito têm `amount: 0`, `kind: "credit_s
 Recusa definitiva mantém o plano anterior. Um pagamento confirmado tardiamente após recusa, ou um estorno da cobrança que financiou a troca, exige revisão: o pagamento permanece registrado e a assinatura deixa de emitir ciclos automaticamente. Não há estorno automático nem resolução financeira automática desses casos; o operador precisa reconciliar os valores com o provedor.
 
 O painel apresenta a prévia e pede confirmação antes de trocar o plano. Os endpoints de gestão são privados nesta instalação; a configuração do domínio/proxy para acesso entre servidores continua necessária.
+
+## Troca agendada na renovação
+
+Use este fluxo para migrar preço/plano somente na próxima renovação. Ele é diferente da troca imediata com prorrateio acima.
+
+`POST /v1/subscriptions/{id}/change-plan/schedule`
+
+```json
+{
+  "plan_id": "ID_PLANO_DESTINO",
+  "metadata": {"source":"prontei","migration_item_id":"91"}
+}
+```
+
+A resposta contém `change_id`, `status: "scheduled"` e `effective_at`. A rota exige `Authorization`, JSON e `Idempotency-Key`; repetir a mesma chave e o mesmo corpo devolve a resposta original. A assinatura precisa estar ativa, não pausada, com período atual pago, sem troca imediata ou agendada conflitante, e o plano destino precisa usar a mesma moeda.
+
+Na renovação, o worker cria uma única cobrança com preço, moeda e créditos do plano destino e muda o agendamento para `pending_payment`. `subscriptions.plan_id` e os direitos antigos permanecem até `charge.paid`. Pagamento confirmado aplica o plano e o calendário destino e marca `applied`; `failed`, `manual_review` ou `reversed` mantêm o plano antigo e o agendamento ligado à cobrança para tratamento de carência/revisão pelo SaaS.
+
+Antes de existir uma cobrança vinculada, cancele com:
+
+`POST /v1/subscriptions/{id}/change-plan/schedule/cancel` e corpo `{}`.
+
+O cancelamento é idempotente pela chave da requisição, retorna o ID da assinatura e `status: "canceled"`, e emite `subscription.change_schedule_canceled`. Depois de vinculada a cobrança, o cancelamento específico retorna conflito; cancelar a assinatura inteira cancela também o agendamento. Pausar/retomar é permitido antes do vínculo e desloca `effective_at`; durante pagamento migrado não resolvido, pausa e retomada ficam bloqueadas. Pagamento tardio após assinatura cancelada/pausada gera revisão manual e não concede plano nem créditos automaticamente.
+
+`GET /v1/subscriptions/{id}` expõe `pending_scheduled_change` enquanto o estado for `scheduled` ou `pending_payment`, com origem, destino, data efetiva, metadata, cobrança/estado financeiro e `payment_review_at`. Eventos: `subscription.change_scheduled`, `subscription.change_schedule_canceled`, `subscription.change_schedule_applied` e `subscription.change_schedule_failed`.

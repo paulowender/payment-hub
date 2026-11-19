@@ -64,7 +64,7 @@ func fail(w http.ResponseWriter, err error) {
 			code, msg = 404, "referenced_resource_not_found"
 		case "23505":
 			code, msg = 409, "resource_already_exists"
-		case "23514", "22003", "22008", "22007":
+		case "23514", "22003", "22008", "22007", "22P02", "22P05":
 			code, msg = 400, "invalid_request"
 		}
 	}
@@ -179,8 +179,14 @@ func (a *API) mutate(r *http.Request, tx pgx.Tx, tenant, key string) (any, error
 	path := strings.Trim(r.URL.Path, "/")
 	parts := strings.Split(path, "/")
 	if len(parts) >= 4 && parts[1] == "subscriptions" {
-		if len(parts) == 4 && (parts[3] == "pause" || parts[3] == "resume" || parts[3] == "cancel" || parts[3] == "change-plan") {
+		if len(parts) == 4 && (parts[3] == "pause" || parts[3] == "resume" || parts[3] == "cancel" || parts[3] == "reactivate" || parts[3] == "change-plan") {
 			return a.lifecycle(r, tx, tenant, parts[2], parts[3])
+		}
+		if len(parts) == 5 && parts[3] == "change-plan" && parts[4] == "schedule" {
+			return a.lifecycle(r, tx, tenant, parts[2], "schedule")
+		}
+		if len(parts) == 6 && parts[3] == "change-plan" && parts[4] == "schedule" && parts[5] == "cancel" {
+			return a.lifecycle(r, tx, tenant, parts[2], "schedule-cancel")
 		}
 		if len(parts) == 5 && parts[3] == "change-plan" && parts[4] == "preview" {
 			return a.lifecycle(r, tx, tenant, parts[2], "preview")
@@ -194,68 +200,88 @@ func (a *API) mutate(r *http.Request, tx pgx.Tx, tenant, key string) (any, error
 
 	case "v1/customers":
 		var in struct {
-			ExternalID string `json:"external_id"`
+			Metadata   json.RawMessage `json:"metadata"`
+			ExternalID string          `json:"external_id"`
 		}
 		if decode(r, &in) != nil || len(in.ExternalID) < 1 || len(in.ExternalID) > 200 {
 			return nil, errInvalid
 		}
+		metadata, err := decodeMetadata(in.Metadata)
+		if err != nil {
+			return nil, err
+		}
 		id := token()
-		if _, err := tx.Exec(ctx, "INSERT INTO customers(tenant_id,id,external_id) VALUES($1,$2,$3)", tenant, id, in.ExternalID); err != nil {
+		if _, err := tx.Exec(ctx, "INSERT INTO customers(tenant_id,id,external_id,metadata) VALUES($1,$2,$3,COALESCE($4::jsonb,'{}'::jsonb))", tenant, id, in.ExternalID, in.Metadata); err != nil {
 			return nil, err
 		}
 		if _, err := tx.Exec(ctx, "INSERT INTO wallets(tenant_id,customer_id) VALUES($1,$2)", tenant, id); err != nil {
 			return nil, err
 		}
-		return map[string]string{"id": id, "external_id": in.ExternalID}, nil
+		return map[string]any{"id": id, "external_id": in.ExternalID, "metadata": metadata}, nil
 	case "v1/plans":
 		var in struct {
-			Name     string `json:"name"`
-			Amount   int64  `json:"amount"`
-			Currency string `json:"currency"`
-			Credits  int64  `json:"credits"`
-			Unit     string `json:"interval_unit"`
-			Count    int    `json:"interval_count"`
+			Metadata json.RawMessage `json:"metadata"`
+			Name     string          `json:"name"`
+			Amount   int64           `json:"amount"`
+			Currency string          `json:"currency"`
+			Credits  int64           `json:"credits"`
+			Unit     string          `json:"interval_unit"`
+			Count    int             `json:"interval_count"`
 		}
 		if decode(r, &in) != nil || len(strings.TrimSpace(in.Name)) == 0 || len(in.Name) > 200 || !validAmount(in.Amount) || !validCredits(in.Credits) || !validInterval(in.Unit, in.Count) || (in.Currency != "brl" && in.Currency != "usd") {
 			return nil, errInvalid
 		}
+		metadata, err := decodeMetadata(in.Metadata)
+		if err != nil {
+			return nil, err
+		}
 		id := token()
-		_, err := tx.Exec(ctx, "INSERT INTO plans(tenant_id,id,name,amount,currency,credits,interval_unit,interval_count) VALUES($1,$2,$3,$4,$5,$6,$7,$8)", tenant, id, in.Name, in.Amount, in.Currency, in.Credits, in.Unit, in.Count)
-		return map[string]string{"id": id}, err
+		_, err = tx.Exec(ctx, "INSERT INTO plans(tenant_id,id,name,amount,currency,credits,interval_unit,interval_count,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8,COALESCE($9::jsonb,'{}'::jsonb))", tenant, id, in.Name, in.Amount, in.Currency, in.Credits, in.Unit, in.Count, in.Metadata)
+		return map[string]any{"id": id, "metadata": metadata}, err
 	case "v1/charges":
 		var in struct {
-			Customer         string `json:"customer_id"`
-			Provider         string `json:"provider"`
-			ProviderCustomer string `json:"provider_customer"`
-			PaymentMethod    string `json:"payment_method"`
-			Amount           int64  `json:"amount"`
-			Currency         string `json:"currency"`
-			Credits          int64  `json:"credits"`
+			Metadata         json.RawMessage `json:"metadata"`
+			Customer         string          `json:"customer_id"`
+			Provider         string          `json:"provider"`
+			ProviderCustomer string          `json:"provider_customer"`
+			PaymentMethod    string          `json:"payment_method"`
+			Amount           int64           `json:"amount"`
+			Currency         string          `json:"currency"`
+			Credits          int64           `json:"credits"`
 		}
 		if decode(r, &in) != nil || !validAmount(in.Amount) || !validCredits(in.Credits) {
 			return nil, errInvalid
+		}
+		metadata, err := decodeMetadata(in.Metadata)
+		if err != nil {
+			return nil, err
 		}
 		ac, err := a.paymentAccount(ctx, tx, tenant, in.Provider, in.ProviderCustomer, in.PaymentMethod, in.Currency)
 		if err != nil {
 			return nil, err
 		}
 		id := token()
-		_, err = tx.Exec(ctx, "INSERT INTO charges(tenant_id,id,customer_id,provider,provider_customer,payment_method,amount,currency,credits,account_fingerprint) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)", tenant, id, in.Customer, in.Provider, in.ProviderCustomer, in.PaymentMethod, in.Amount, in.Currency, in.Credits, hash(ac.Secret))
+		_, err = tx.Exec(ctx, "INSERT INTO charges(tenant_id,id,customer_id,provider,provider_customer,payment_method,amount,currency,credits,account_fingerprint,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,COALESCE($11::jsonb,'{}'::jsonb))", tenant, id, in.Customer, in.Provider, in.ProviderCustomer, in.PaymentMethod, in.Amount, in.Currency, in.Credits, hash(ac.Secret), in.Metadata)
 		if err != nil {
 			return nil, err
 		}
-		return map[string]string{"id": id, "status": "queued"}, emit(ctx, tx, tenant, "charge.queued", map[string]string{"charge_id": id})
+		return map[string]any{"id": id, "status": "queued", "metadata": metadata}, emitFinancialEvent(ctx, tx, tenant, "charge.queued", id, nil)
 	case "v1/subscriptions":
 		var in struct {
-			Customer         string     `json:"customer_id"`
-			Plan             string     `json:"plan_id"`
-			Provider         string     `json:"provider"`
-			ProviderCustomer string     `json:"provider_customer"`
-			PaymentMethod    string     `json:"payment_method"`
-			StartAt          *time.Time `json:"start_at"`
+			Metadata         json.RawMessage `json:"metadata"`
+			Customer         string          `json:"customer_id"`
+			Plan             string          `json:"plan_id"`
+			Provider         string          `json:"provider"`
+			ProviderCustomer string          `json:"provider_customer"`
+			PaymentMethod    string          `json:"payment_method"`
+			StartAt          *time.Time      `json:"start_at"`
 		}
 		if decode(r, &in) != nil {
 			return nil, errInvalid
+		}
+		metadata, err := decodeMetadata(in.Metadata)
+		if err != nil {
+			return nil, err
 		}
 		var currency string
 		if err := tx.QueryRow(ctx, "SELECT currency FROM plans WHERE tenant_id=$1 AND id=$2", tenant, in.Plan).Scan(&currency); err != nil {
@@ -273,11 +299,11 @@ func (a *API) mutate(r *http.Request, tx pgx.Tx, tenant, key string) (any, error
 			}
 		}
 		id := token()
-		_, err = tx.Exec(ctx, "INSERT INTO subscriptions(tenant_id,id,customer_id,plan_id,provider,provider_customer,payment_method,anchor,next_at,account_fingerprint) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$8,$9)", tenant, id, in.Customer, in.Plan, in.Provider, in.ProviderCustomer, in.PaymentMethod, start, hash(ac.Secret))
+		_, err = tx.Exec(ctx, "INSERT INTO subscriptions(tenant_id,id,customer_id,plan_id,provider,provider_customer,payment_method,anchor,next_at,account_fingerprint,metadata) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$8,$9,COALESCE($10::jsonb,'{}'::jsonb))", tenant, id, in.Customer, in.Plan, in.Provider, in.ProviderCustomer, in.PaymentMethod, start, hash(ac.Secret), in.Metadata)
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"id": id, "status": "active", "start_at": start}, emit(ctx, tx, tenant, "subscription.created", map[string]string{"subscription_id": id})
+		return map[string]any{"id": id, "status": "active", "start_at": start, "metadata": metadata}, emitSubscriptionEvent(ctx, tx, tenant, "subscription.created", id, nil)
 	}
 	if len(parts) == 4 && parts[1] == "offers" && parts[3] == "archive" {
 		var in struct{}
@@ -425,6 +451,8 @@ func (a *API) read(w http.ResponseWriter, r *http.Request, tenant string) {
 		} else {
 			rows, err = a.Store.DB.Query(ctx, "SELECT to_jsonb(t)-'tenant_id'-'account_fingerprint' FROM events t WHERE tenant_id=$1 AND id>$2 ORDER BY id LIMIT $3", tenant, after, limit)
 		}
+	} else if parts[1] == "charges" && (r.URL.Query().Get("customer_id") != "" || r.URL.Query().Get("subscription_id") != "") {
+		rows, err = a.Store.DB.Query(ctx, "SELECT to_jsonb(t)-'tenant_id'-'account_fingerprint' FROM api_charge_details t WHERE tenant_id=$1 AND ($2='' OR customer_id=$2) AND ($3='' OR subscription_id=$3) ORDER BY created_at DESC, id DESC LIMIT $4", tenant, r.URL.Query().Get("customer_id"), r.URL.Query().Get("subscription_id"), limit)
 	} else {
 		rows, err = a.Store.DB.Query(ctx, "SELECT to_jsonb(t)-'tenant_id'-'account_fingerprint' FROM "+table+" t WHERE tenant_id=$1 AND id>$2 ORDER BY id LIMIT $3", tenant, cursor, limit)
 	}
