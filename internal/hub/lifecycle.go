@@ -72,6 +72,19 @@ func (a *API) lifecycle(r *http.Request, tx pgx.Tx, tenant, id, action string) (
 	if err = tx.QueryRow(ctx, "SELECT clock_timestamp()").Scan(&now); err != nil {
 		return nil, err
 	}
+	if action == "reactivate" {
+		var in struct{}
+		if decode(r, &in) != nil {
+			return nil, errInvalid
+		}
+		if status != "canceled" || !next.After(now) || method == "" {
+			return nil, errConflict
+		}
+		if _, err = tx.Exec(ctx, "UPDATE subscriptions SET status='active' WHERE tenant_id=$1 AND id=$2", tenant, id); err != nil {
+			return nil, err
+		}
+		return map[string]any{"id": id, "status": "active", "next_at": next}, emitSubscriptionEvent(ctx, tx, tenant, "subscription.reactivated", id, nil)
+	}
 	if action == "pause" || action == "resume" || action == "cancel" {
 		var in struct{}
 		if decode(r, &in) != nil {
