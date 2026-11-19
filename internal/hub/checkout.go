@@ -24,17 +24,81 @@ type Branding struct {
 	Primary         string `json:"primary_color"`
 	Background      string `json:"background_color"`
 }
+type checkoutBuyerPrefill struct {
+	Name     string `json:"name,omitempty"`
+	Email    string `json:"email,omitempty"`
+	Document string `json:"document,omitempty"`
+	Phone    string `json:"phone,omitempty"`
+	Street   string `json:"street,omitempty"`
+	Number   string `json:"number,omitempty"`
+	Zip      string `json:"zip_code,omitempty"`
+	City     string `json:"city,omitempty"`
+	State    string `json:"state,omitempty"`
+}
+
+func sanitizeBuyerPrefill(in *checkoutBuyerPrefill) *checkoutBuyerPrefill {
+	if in == nil {
+		return nil
+	}
+	cleanText := func(s string, max int) string {
+		s = strings.TrimSpace(s)
+		if len(s) > max {
+			s = s[:max]
+		}
+		return s
+	}
+	onlyDigits := func(s string, max int) string {
+		var b strings.Builder
+		for _, r := range s {
+			if r >= '0' && r <= '9' {
+				b.WriteRune(r)
+			}
+		}
+		out := b.String()
+		if len(out) > max {
+			out = out[:max]
+		}
+		return out
+	}
+	phone := onlyDigits(in.Phone, 13)
+	if strings.HasPrefix(phone, "55") && (len(phone) == 12 || len(phone) == 13) {
+		phone = phone[2:]
+	} else if len(phone) > 11 {
+		phone = phone[:11]
+	}
+	state := strings.ToUpper(cleanText(in.State, 2))
+	if !regexp.MustCompile(`^[A-Z]{2}$`).MatchString(state) {
+		state = ""
+	}
+	out := checkoutBuyerPrefill{
+		Name:     cleanText(in.Name, 100),
+		Email:    cleanText(in.Email, 200),
+		Document: onlyDigits(in.Document, 14),
+		Phone:    phone,
+		Street:   cleanText(in.Street, 150),
+		Number:   cleanText(in.Number, 20),
+		Zip:      onlyDigits(in.Zip, 8),
+		City:     cleanText(in.City, 100),
+		State:    state,
+	}
+	if out == (checkoutBuyerPrefill{}) {
+		return nil
+	}
+	return &out
+}
+
 type checkoutSnapshot struct {
-	Settings    *CheckoutSettings `json:"settings,omitempty"`
-	Branding    Branding          `json:"branding"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Amount      int64             `json:"amount"`
-	Currency    string            `json:"currency"`
-	Credits     int64             `json:"credits"`
-	Plan        string            `json:"plan_id"`
-	Unit        string            `json:"interval_unit"`
-	Count       int               `json:"interval_count"`
+	Settings    *CheckoutSettings     `json:"settings,omitempty"`
+	Branding    Branding              `json:"branding"`
+	Buyer       *checkoutBuyerPrefill `json:"buyer,omitempty"`
+	Name        string                `json:"name"`
+	Description string                `json:"description"`
+	Amount      int64                 `json:"amount"`
+	Currency    string                `json:"currency"`
+	Credits     int64                 `json:"credits"`
+	Plan        string                `json:"plan_id"`
+	Unit        string                `json:"interval_unit"`
+	Count       int                   `json:"interval_count"`
 }
 
 var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
@@ -122,10 +186,11 @@ func (a *API) checkoutMutate(r *http.Request, tx pgx.Tx, tenant, path string) (a
 		return map[string]any{"id": id, "plan_id": in.Plan, "metadata": metadata}, e
 	case "v1/checkout-sessions":
 		var in struct {
-			Metadata  json.RawMessage `json:"metadata"`
-			Offer     string          `json:"offer_id"`
-			Customer  string          `json:"customer_id"`
-			Reference string          `json:"reference"`
+			Metadata  json.RawMessage       `json:"metadata"`
+			Offer     string                `json:"offer_id"`
+			Customer  string                `json:"customer_id"`
+			Reference string                `json:"reference"`
+			Buyer     *checkoutBuyerPrefill `json:"buyer"`
 		}
 		if decode(r, &in) != nil || len(in.Reference) < 1 || len(in.Reference) > 200 {
 			return nil, errInvalid
@@ -162,6 +227,7 @@ func (a *API) checkoutMutate(r *http.Request, tx pgx.Tx, tenant, path string) (a
 			return nil, errInvalid
 		}
 		snap.Settings = &cfg
+		snap.Buyer = sanitizeBuyerPrefill(in.Buyer)
 		snap.Branding, e = readBrand(ctx, tx, tenant)
 		if e != nil {
 			return nil, e
