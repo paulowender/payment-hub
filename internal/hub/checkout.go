@@ -88,18 +88,20 @@ func sanitizeBuyerPrefill(in *checkoutBuyerPrefill) *checkoutBuyerPrefill {
 }
 
 type checkoutSnapshot struct {
-	Settings    *CheckoutSettings     `json:"settings,omitempty"`
-	Branding    Branding              `json:"branding"`
-	Buyer       *checkoutBuyerPrefill `json:"buyer,omitempty"`
-	ReturnURL   string                `json:"return_url,omitempty"`
-	Name        string                `json:"name"`
-	Description string                `json:"description"`
-	Amount      int64                 `json:"amount"`
-	Currency    string                `json:"currency"`
-	Credits     int64                 `json:"credits"`
-	Plan        string                `json:"plan_id"`
-	Unit        string                `json:"interval_unit"`
-	Count       int                   `json:"interval_count"`
+	Settings       *CheckoutSettings     `json:"settings,omitempty"`
+	Branding       Branding              `json:"branding"`
+	Buyer          *checkoutBuyerPrefill `json:"buyer,omitempty"`
+	ReturnURL      string                `json:"return_url,omitempty"`
+	Name           string                `json:"name"`
+	Description    string                `json:"description"`
+	Amount         int64                 `json:"amount"`
+	OriginalAmount int64                 `json:"original_amount,omitempty"`
+	DiscountAmount int64                 `json:"discount_amount,omitempty"`
+	Currency       string                `json:"currency"`
+	Credits        int64                 `json:"credits"`
+	Plan           string                `json:"plan_id"`
+	Unit           string                `json:"interval_unit"`
+	Count          int                   `json:"interval_count"`
 }
 
 func sanitizeReturnURL(raw string) string {
@@ -199,14 +201,15 @@ func (a *API) checkoutMutate(r *http.Request, tx pgx.Tx, tenant, path string) (a
 		return map[string]any{"id": id, "plan_id": in.Plan, "metadata": metadata}, e
 	case "v1/checkout-sessions":
 		var in struct {
-			Metadata  json.RawMessage       `json:"metadata"`
-			Offer     string                `json:"offer_id"`
-			Customer  string                `json:"customer_id"`
-			Reference string                `json:"reference"`
-			Buyer     *checkoutBuyerPrefill `json:"buyer"`
-			ReturnURL string                `json:"return_url"`
+			Metadata       json.RawMessage       `json:"metadata"`
+			Offer          string                `json:"offer_id"`
+			Customer       string                `json:"customer_id"`
+			Reference      string                `json:"reference"`
+			Buyer          *checkoutBuyerPrefill `json:"buyer"`
+			ReturnURL      string                `json:"return_url"`
+			DiscountAmount int64                 `json:"discount_amount"`
 		}
-		if decode(r, &in) != nil || len(in.Reference) < 1 || len(in.Reference) > 200 {
+		if decode(r, &in) != nil || len(in.Reference) < 1 || len(in.Reference) > 200 || in.DiscountAmount < 0 {
 			return nil, errInvalid
 		}
 		metadata, err := decodeMetadata(in.Metadata)
@@ -241,6 +244,15 @@ func (a *API) checkoutMutate(r *http.Request, tx pgx.Tx, tenant, path string) (a
 			return nil, errInvalid
 		}
 		snap.Settings = &cfg
+		if in.DiscountAmount > 0 {
+			snap.OriginalAmount = snap.Amount
+			finalAmount := snap.Amount - in.DiscountAmount
+			if finalAmount < 100 {
+				finalAmount = 100
+			}
+			snap.DiscountAmount = snap.Amount - finalAmount
+			snap.Amount = finalAmount
+		}
 		snap.Buyer = sanitizeBuyerPrefill(in.Buyer)
 		snap.ReturnURL = sanitizeReturnURL(in.ReturnURL)
 		snap.Branding, e = readBrand(ctx, tx, tenant)
