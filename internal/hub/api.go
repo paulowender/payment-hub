@@ -451,6 +451,8 @@ func (a *API) read(w http.ResponseWriter, r *http.Request, tenant string) {
 		} else {
 			rows, err = a.Store.DB.Query(ctx, "SELECT to_jsonb(t)-'tenant_id'-'account_fingerprint' FROM events t WHERE tenant_id=$1 AND id>$2 ORDER BY id LIMIT $3", tenant, after, limit)
 		}
+	} else if parts[1] == "charges" && (r.URL.Query().Get("customer_id") != "" || r.URL.Query().Get("subscription_id") != "") {
+		rows, err = a.Store.DB.Query(ctx, "SELECT to_jsonb(t)-'tenant_id'-'account_fingerprint' FROM api_charge_details t WHERE tenant_id=$1 AND ($2='' OR customer_id=$2) AND ($3='' OR subscription_id=$3) ORDER BY created_at DESC, id DESC LIMIT $4", tenant, r.URL.Query().Get("customer_id"), r.URL.Query().Get("subscription_id"), limit)
 	} else {
 		rows, err = a.Store.DB.Query(ctx, "SELECT to_jsonb(t)-'tenant_id'-'account_fingerprint' FROM "+table+" t WHERE tenant_id=$1 AND id>$2 ORDER BY id LIMIT $3", tenant, cursor, limit)
 	}
