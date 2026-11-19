@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"encoding/json"
 	"github.com/jackc/pgx/v5"
 	"net/http"
 	"net/url"
@@ -70,12 +71,12 @@ func (a *API) portalData(w http.ResponseWriter, r *http.Request) {
 		respond(w, 410, map[string]string{"error": "portal_expired"})
 		return
 	}
-	var name, currency, unit, status string
+	var name, currency, unit, status, customerID string
 	var amount int64
 	var count int
 	var next time.Time
 	var paused *time.Time
-	e = a.Store.DB.QueryRow(r.Context(), `SELECT p.name,p.amount,p.currency,p.interval_unit,p.interval_count,s.status,s.next_at,s.paused_at FROM subscriptions s JOIN plans p ON p.tenant_id=s.tenant_id AND p.id=s.plan_id WHERE s.tenant_id=$1 AND s.id=$2`, tenant, sub).Scan(&name, &amount, &currency, &unit, &count, &status, &next, &paused)
+	e = a.Store.DB.QueryRow(r.Context(), `SELECT p.name,p.amount,p.currency,p.interval_unit,p.interval_count,s.status,s.next_at,s.paused_at,s.customer_id FROM subscriptions s JOIN plans p ON p.tenant_id=s.tenant_id AND p.id=s.plan_id WHERE s.tenant_id=$1 AND s.id=$2`, tenant, sub).Scan(&name, &amount, &currency, &unit, &count, &status, &next, &paused, &customerID)
 	if e != nil {
 		fail(w, e)
 		return
@@ -120,7 +121,13 @@ func (a *API) portalData(w http.ResponseWriter, r *http.Request) {
 		}
 		publicKey, environment = ac.PublicKey, ac.Environment
 	}
-	respond(w, 200, map[string]any{"branding": brand, "subscription": map[string]any{"name": name, "amount": amount, "currency": currency, "interval_unit": unit, "interval_count": count, "status": status, "next_at": next, "paused_at": paused}, "charges": charges, "buyer_cancel": settings.BuyerCancel, "buyer_update_card": settings.BuyerUpdateCard, "public_key": publicKey, "environment": environment})
+	var buyer json.RawMessage
+	_ = a.Store.DB.QueryRow(r.Context(), `SELECT snapshot->'buyer' FROM checkout_sessions WHERE tenant_id=$1 AND customer_id=$2 AND snapshot ? 'buyer' ORDER BY created_at DESC LIMIT 1`, tenant, customerID).Scan(&buyer)
+	out := map[string]any{"branding": brand, "subscription": map[string]any{"name": name, "amount": amount, "currency": currency, "interval_unit": unit, "interval_count": count, "status": status, "next_at": next, "paused_at": paused}, "charges": charges, "buyer_cancel": settings.BuyerCancel, "buyer_update_card": settings.BuyerUpdateCard, "public_key": publicKey, "environment": environment}
+	if len(buyer) > 0 {
+		out["buyer"] = buyer
+	}
+	respond(w, 200, out)
 }
 
 type portalCardInput struct {
